@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const Client = require('../tv_client');
+const Client = require('../core/tv_client');
 
 const client = new Client({
   token: process.env.TV_SESSION_ID,

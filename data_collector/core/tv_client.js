@@ -1,8 +1,8 @@
 const WebSocket = require('ws');
 
-const misc = require('./misc_requests');
-const protocol = require('../tv_protocol');
+const protocol = require('./tv_protocol');
 const chartSessionGenerator = require('./chart_session');
+const misc = require('./misc_requests');
 
 /**
  * @typedef {Object} Session
