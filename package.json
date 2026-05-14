@@ -3,6 +3,14 @@
     "axios": "^1.16.1",
     "dotenv": "^17.4.2",
     "jszip": "^3.10.1",
+    "pg": "^8.20.0",
     "ws": "^8.20.1"
+  },
+
+  "scripts": {
+    "stream": "node data_collector/collectors/stream_many.js",
+    "test:login": "node data_collector/tests/test_login.js",
+    "test:bars": "node data_collector/tests/test_bar_limit.js",
+    "test:stream": "node data_collector/tests/test_stream.js"
   }
 }
