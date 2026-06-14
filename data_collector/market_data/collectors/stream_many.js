@@ -5,7 +5,7 @@ const path = require('path');
 
 const Client = require('../core/tv_client');
 const symbols = require('../config/symbols');
-const pool = require('../database/db');
+const pool = require('../../database/db');
 
 const OUTPUT_DIR = path.join(__dirname, '..', 'output');
 const OUTPUT_FILE = path.join(OUTPUT_DIR, 'market_data.jsonl');
