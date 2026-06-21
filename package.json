@@ -10,6 +10,8 @@
   "scripts": {
     "stream": "node data_collector/market_data/collectors/stream_many.js",
     "backfill:market": "node data_collector/market_data/collectors/historical_backfill.js",
+    "generate:fx-inverses": "python3 -m data_collector.market_data.collectors.generate_fx_inverses",
+    "backfill:market:full": "npm run backfill:market && npm run generate:fx-inverses",
     "test:login": "node data_collector/tests/test_login.js",
     "test:bars": "node data_collector/tests/test_bar_limit.js",
     "test:stream": "node data_collector/tests/test_stream.js"
