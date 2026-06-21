@@ -24,6 +24,5 @@ COMMODITIES = [
     ("Cattle", ["0102"]),
     ("Lithium", ["282520", "283691"]),
     ("Lumber", ["4407"]),
-    ("Cobalt", ["810520"]),
-    ("BDI", None),
+    ("Cobalt", ["810520"])
 ]
