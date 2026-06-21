@@ -26,6 +26,7 @@ ON market_data(symbol, timestamp);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_market_unique_candle
 ON market_data(symbol, timeframe, timestamp);
 
+
 CREATE TABLE IF NOT EXISTS fundamental_trade_data (
     id BIGSERIAL PRIMARY KEY,
 
@@ -50,3 +51,22 @@ ON fundamental_trade_data(period);
 
 CREATE INDEX IF NOT EXISTS idx_fundamental_trade_commodity
 ON fundamental_trade_data(commodity);
+
+
+CREATE TABLE IF NOT EXISTS news_articles (
+    id BIGSERIAL PRIMARY KEY,
+
+    source TEXT NOT NULL,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    published TIMESTAMPTZ,
+    summary TEXT,
+
+    received_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_source
+ON news_articles(source);
+
+CREATE INDEX IF NOT EXISTS idx_news_published
+ON news_articles(published);
