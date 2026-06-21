@@ -1,8 +1,8 @@
 RSS_FEEDS = {
     "reuters": [
-        "https://feeds.reuters.com/reuters/topNews",
-        "https://feeds.reuters.com/reuters/businessNews",
-        "https://feeds.reuters.com/reuters/technologyNews",
+    "https://news.google.com/rss/search?q=site%3Areuters.com%20commodities&hl=en-US&gl=US&ceid=US%3Aen",
+    "https://news.google.com/rss/search?q=site%3Areuters.com%20oil%20OR%20gold%20OR%20copper%20OR%20natural%20gas&hl=en-US&gl=US&ceid=US%3Aen",
+    "https://news.google.com/rss/search?q=site%3Areuters.com%20forex%20OR%20currency%20OR%20dollar&hl=en-US&gl=US&ceid=US%3Aen",
     ],
 
     "bloomberg": [
@@ -18,15 +18,6 @@ RSS_FEEDS = {
 }
 
 SCRAPE_TARGETS = {
-    "reuters": {
-        "url": "https://www.reuters.com",
-        "selectors": [
-            "a[data-testid='Heading']",
-            "h3 a",
-            "article a",
-        ],
-    },
-
     "investing": {
         "url": "https://www.investing.com/news/latest-news",
         "selectors": [
