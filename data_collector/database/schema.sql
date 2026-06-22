@@ -70,3 +70,33 @@ ON news_articles(source);
 
 CREATE INDEX IF NOT EXISTS idx_news_published
 ON news_articles(published);
+
+
+CREATE TABLE IF NOT EXISTS news_sentiment (
+    id BIGSERIAL PRIMARY KEY,
+
+    article_id BIGINT NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+
+    asset TEXT NOT NULL,
+    asset_type TEXT NOT NULL,
+
+    direction TEXT NOT NULL,
+
+    sentiment_score DOUBLE PRECISION NOT NULL,
+    confidence DOUBLE PRECISION NOT NULL,
+
+    reasoning TEXT,
+
+    model TEXT NOT NULL,
+
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_news_sentiment_unique
+ON news_sentiment(article_id, asset, model);
+
+CREATE INDEX IF NOT EXISTS idx_news_sentiment_asset
+ON news_sentiment(asset);
+
+CREATE INDEX IF NOT EXISTS idx_news_sentiment_direction
+ON news_sentiment(direction);

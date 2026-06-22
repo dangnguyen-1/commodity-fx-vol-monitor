@@ -1,0 +1,43 @@
+COMMODITY_ASSETS = [
+    "Brent Oil",
+    "Crude Oil",
+    "Natural Gas",
+    "Gasoline",
+    "Coal",
+    "Uranium",
+    "Gold",
+    "Silver",
+    "Iron Ore",
+    "Copper",
+    "Aluminum",
+    "Zinc",
+    "Nickel",
+    "Platinum",
+    "Palladium",
+    "Soybeans",
+    "Wheat",
+    "Corn",
+    "Sugar",
+    "Coffee",
+    "Cotton",
+    "Cocoa",
+    "Cattle",
+    "Lithium",
+    "Lumber",
+    "Heating Oil",
+    "LNG",
+    "Lithium Hydroxide",
+]
+
+FX_ASSETS = [
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY",
+    "CHF",
+    "CAD",
+    "AUD",
+    "NZD",
+]
+
+ALL_ASSETS = COMMODITY_ASSETS + FX_ASSETS

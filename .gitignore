@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 data_collector/fundamental_data/output/
 data_collector/market_data/output/
+data_collector/news_data/output/
