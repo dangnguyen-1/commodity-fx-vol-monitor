@@ -38,6 +38,7 @@ FX_ASSETS = [
     "CAD",
     "AUD",
     "NZD",
+    "BRL",
 ]
 
 ALL_ASSETS = COMMODITY_ASSETS + FX_ASSETS

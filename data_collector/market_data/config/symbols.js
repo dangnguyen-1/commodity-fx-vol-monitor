@@ -32,6 +32,7 @@ const fx = [
   'FX:GBPUSD',
   'FX:NZDUSD',
   'FX:AUDUSD',
+  'FX_IDC:BRLUSD',
   'FX:EURGBP',
   'FX:EURJPY',
   'FX:EURCHF',
