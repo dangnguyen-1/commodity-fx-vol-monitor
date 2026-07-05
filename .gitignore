@@ -5,3 +5,4 @@ __pycache__/
 data_collector/fundamental_data/output/
 data_collector/market_data/output/
 data_collector/news_data/output/
+strategy/output/
