@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -15,15 +16,36 @@ BASE_URL = "https://comtradeapi.un.org/data/v1/get/C/M/HS"
 PARTNER_CODE = "0"
 
 START_PERIOD = "201001"
-END_YEAR = 2026
+
+# Default to current month instead of all of 2026.
+# You can override with COMTRADE_END_PERIOD=YYYYMM in .env.
+END_PERIOD = os.getenv(
+    "COMTRADE_END_PERIOD",
+    datetime.now(timezone.utc).strftime("%Y%m"),
+)
 
 COUNTRY_BATCH_SIZE = 5
 PERIOD_BATCH_SIZE = 3
 SLEEP_SECONDS = 1.5
 MAX_RETRIES = 3
 
-OUTPUT_DIR = Path("data_collector/fundamental_data/output/backfill")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_ROOT = Path("data_collector/fundamental_data/output")
+BACKFILL_DIR = OUTPUT_ROOT / "backfill"
+BATCH_DIR = BACKFILL_DIR / "batches"
+COMMODITY_DIR = BACKFILL_DIR / "commodities"
+
+BATCH_DIR.mkdir(parents=True, exist_ok=True)
+COMMODITY_DIR.mkdir(parents=True, exist_ok=True)
+
+BATCH_COLUMNS = [
+    "country",
+    "commodity",
+    "period",
+    "exports_usd",
+    "imports_usd",
+    "net_usd",
+    "note",
+]
 
 
 def get_api_key() -> str:
@@ -33,9 +55,12 @@ def get_api_key() -> str:
     return api_key
 
 
-def make_periods(start_period: str, end_year: int) -> list[str]:
+def make_periods(start_period: str, end_period: str) -> list[str]:
     start_year = int(start_period[:4])
     start_month = int(start_period[4:])
+
+    end_year = int(end_period[:4])
+    end_month = int(end_period[4:])
 
     periods = []
 
@@ -43,6 +68,9 @@ def make_periods(start_period: str, end_year: int) -> list[str]:
         for month in range(1, 13):
             if year == start_year and month < start_month:
                 continue
+            if year == end_year and month > end_month:
+                continue
+
             periods.append(f"{year}{month:02d}")
 
     return periods
@@ -59,6 +87,17 @@ def group_hs_codes_by_length(hs_codes: list[str]) -> dict[int, list[str]]:
         grouped.setdefault(len(code), []).append(code)
 
     return grouped
+
+
+def safe_name(value: str) -> str:
+    return (
+        value.lower()
+        .replace(" / ", "_")
+        .replace(" ", "_")
+        .replace("/", "_")
+        .replace(":", "_")
+        .replace(",", "_")
+    )
 
 
 def request_comtrade(params: dict, api_key: str) -> list[dict]:
@@ -168,14 +207,49 @@ def build_rows(
     return rows
 
 
-def output_path_for_commodity(commodity: str) -> Path:
-    safe_name = (
-        commodity.lower()
-        .replace(" / ", "_")
-        .replace(" ", "_")
-        .replace("/", "_")
-    )
-    return OUTPUT_DIR / f"{safe_name}.csv"
+def batch_path_for_commodity_country_batch(
+    commodity: str,
+    country_batch: list[str],
+) -> Path:
+    country_part = "-".join(country_batch)
+    return BATCH_DIR / f"{safe_name(commodity)}__{country_part}.csv"
+
+
+def commodity_output_path(commodity: str) -> Path:
+    return COMMODITY_DIR / f"{safe_name(commodity)}.csv"
+
+
+def save_rows(path: Path, rows: list[dict]) -> None:
+    df = pd.DataFrame(rows, columns=BATCH_COLUMNS)
+    df.to_csv(path, index=False)
+
+
+def load_batch_files_for_commodity(commodity: str) -> pd.DataFrame:
+    pattern = f"{safe_name(commodity)}__*.csv"
+    files = sorted(BATCH_DIR.glob(pattern))
+
+    if not files:
+        return pd.DataFrame(columns=BATCH_COLUMNS)
+
+    frames = []
+
+    for file in files:
+        try:
+            frames.append(pd.read_csv(file))
+        except pd.errors.EmptyDataError:
+            frames.append(pd.DataFrame(columns=BATCH_COLUMNS))
+
+    if not frames:
+        return pd.DataFrame(columns=BATCH_COLUMNS)
+
+    return pd.concat(frames, ignore_index=True)
+
+
+def save_commodity_output_from_batches(commodity: str) -> None:
+    df = load_batch_files_for_commodity(commodity)
+    path = commodity_output_path(commodity)
+    df.to_csv(path, index=False)
+    print(f"[COMMODITY SAVED] {commodity}: {len(df)} rows -> {path}")
 
 
 def backfill_commodity(
@@ -184,15 +258,19 @@ def backfill_commodity(
     periods: list[str],
     api_key: str,
 ) -> None:
-    output_path = output_path_for_commodity(commodity)
+    final_path = commodity_output_path(commodity)
 
-    if output_path.exists():
-        print(f"[SKIP] {commodity} already exists: {output_path}")
+    if final_path.exists():
+        print(f"[SKIP] {commodity} already completed: {final_path}")
         return
 
-    rows = []
-
     for country_batch in chunk_list(COUNTRIES, COUNTRY_BATCH_SIZE):
+        batch_path = batch_path_for_commodity_country_batch(commodity, country_batch)
+
+        if batch_path.exists():
+            print(f"    [SKIP BATCH] countries={','.join(country_batch)}")
+            continue
+
         reporter_codes = ",".join(ISO3_TO_M49[iso3] for iso3 in country_batch)
 
         print(f"    countries={','.join(country_batch)}")
@@ -215,24 +293,36 @@ def backfill_commodity(
 
         exports = aggregate_records(export_records)
         imports = aggregate_records(import_records)
-        rows.extend(build_rows(commodity, exports, imports))
+        rows = build_rows(commodity, exports, imports)
 
-    df = pd.DataFrame(rows)
-    df.to_csv(output_path, index=False)
+        save_rows(batch_path, rows)
+        print(f"    [BATCH SAVED] {len(rows)} rows -> {batch_path}")
 
-    print(f"[SAVED] {commodity}: {len(df)} rows -> {output_path}")
+    save_commodity_output_from_batches(commodity)
 
 
 def combine_outputs() -> None:
-    files = sorted(OUTPUT_DIR.glob("*.csv"))
+    files = sorted(BATCH_DIR.glob("*.csv"))
 
     if not files:
-        print("No backfill files to combine.")
+        print("No batch files to combine.")
         return
 
-    df = pd.concat((pd.read_csv(file) for file in files), ignore_index=True)
+    frames = []
 
-    combined_path = Path("data_collector/fundamental_data/output/trade_data_backfill_long.csv")
+    for file in files:
+        try:
+            frames.append(pd.read_csv(file))
+        except pd.errors.EmptyDataError:
+            continue
+
+    if not frames:
+        print("No non-empty batch files to combine.")
+        return
+
+    df = pd.concat(frames, ignore_index=True)
+
+    combined_path = OUTPUT_ROOT / "trade_data_backfill_long.csv"
     df.to_csv(combined_path, index=False)
 
     print(f"[COMBINED] {len(df)} rows -> {combined_path}")
@@ -240,10 +330,11 @@ def combine_outputs() -> None:
 
 def main() -> None:
     api_key = get_api_key()
-    periods = make_periods(START_PERIOD, END_YEAR)
+    periods = make_periods(START_PERIOD, END_PERIOD)
 
     print(f"Historical backfill from {periods[0]} to {periods[-1]}")
     print("This may exceed the daily free quota. Rerun tomorrow to resume.")
+    print("Progress is saved after every completed country batch.")
     print()
 
     try:

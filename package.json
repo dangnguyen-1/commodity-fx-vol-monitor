@@ -12,6 +12,8 @@
     "backfill:market": "node data_collector/market_data/collectors/historical_backfill.js",
     "generate:fx-inverses": "python3 -m data_collector.market_data.collectors.generate_fx_inverses",
     "backfill:market:full": "npm run backfill:market && npm run generate:fx-inverses",
+    "backfill:market:daily": "node data_collector/market_data/collectors/historical_daily_backfill.js",
+    "backfill:market:daily:full": "npm run backfill:market:daily && npm run generate:fx-inverses",
     "stream:news": "python3 -m data_collector.news_data.collectors.news_stream",
     "test:login": "node data_collector/tests/test_login.js",
     "test:bars": "node data_collector/tests/test_bar_limit.js",
