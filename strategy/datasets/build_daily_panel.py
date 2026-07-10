@@ -38,6 +38,7 @@ def load_market_data(conn, symbols):
             close
         FROM market_data
         WHERE symbol IN ({placeholders})
+        AND timeframe IN ('1D', 'D')
         ORDER BY symbol, datetime_utc;
     """
 
