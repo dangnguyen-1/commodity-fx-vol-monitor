@@ -1,6 +1,4 @@
 from pathlib import Path
-
-import numpy as np
 import pandas as pd
 
 
@@ -19,6 +17,7 @@ MAX_CURRENCY_NEW_GROSS_EXPOSURE_PCT = 0.04
 MAX_POSITIONS_PER_DAY = 5
 MAX_POSITIONS_PER_CURRENCY_PER_DAY = 2
 MAX_POSITIONS_PER_COMMODITY_PER_DAY = 1
+MAX_POSITIONS_PER_FX_SYMBOL_PER_DAY = 1
 
 # Minimum position after any risk scaling.
 MIN_POSITION_PCT = 0.001
@@ -114,11 +113,11 @@ def approve_daily_trades(day_df: pd.DataFrame) -> pd.DataFrame:
         [
             "risk_rule_priority",
             "combined_trade_score",
-            "confirmation_score",
-            "divergence_score",
             "position_size_usd",
+            "relationship_id",
         ],
-        ascending=[False, False, False, False, False],
+        ascending=[False, False, False, True],
+        kind="mergesort",
     )
 
     approved_count = 0
@@ -126,15 +125,18 @@ def approve_daily_trades(day_df: pd.DataFrame) -> pd.DataFrame:
     currency_gross_used: dict[str, float] = {}
     currency_position_count: dict[str, int] = {}
     commodity_position_count: dict[str, int] = {}
+    fx_symbol_position_count: dict[str, int] = {}
 
     for idx, row in candidates.iterrows():
         currency = row["currency"]
         commodity = row["commodity"]
+        fx_symbol = row["fx_symbol"]
         requested_size = float(row["position_size_usd"])
 
         currency_gross_used.setdefault(currency, 0.0)
         currency_position_count.setdefault(currency, 0)
         commodity_position_count.setdefault(commodity, 0)
+        fx_symbol_position_count.setdefault(fx_symbol, 0)
 
         if approved_count >= MAX_POSITIONS_PER_DAY:
             day_df.loc[idx, "risk_rejection_reason"] = "max_positions_per_day"
@@ -146,6 +148,12 @@ def approve_daily_trades(day_df: pd.DataFrame) -> pd.DataFrame:
 
         if commodity_position_count[commodity] >= MAX_POSITIONS_PER_COMMODITY_PER_DAY:
             day_df.loc[idx, "risk_rejection_reason"] = "max_positions_per_commodity"
+            continue
+        
+        if fx_symbol_position_count[fx_symbol] >= MAX_POSITIONS_PER_FX_SYMBOL_PER_DAY:
+            day_df.loc[idx, "risk_rejection_reason"] = (
+                "max_positions_per_fx_symbol"
+            )
             continue
 
         remaining_daily_capacity = max_daily_gross_usd - daily_gross_used
@@ -184,6 +192,7 @@ def approve_daily_trades(day_df: pd.DataFrame) -> pd.DataFrame:
         currency_gross_used[currency] += allowed_size
         currency_position_count[currency] += 1
         commodity_position_count[commodity] += 1
+        fx_symbol_position_count[fx_symbol] += 1
 
     return day_df
 

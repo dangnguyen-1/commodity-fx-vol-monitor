@@ -8,9 +8,10 @@ INPUT_PATH = Path("strategy/output/daily_divergence.csv")
 OUTPUT_PATH = Path("strategy/output/daily_trade_candidates.csv")
 
 
-# Strategy A: simple baseline.
-# Uses any directional signal with at least weak confirmation.
-BASELINE_MIN_CONFIRMATION = 0.30
+# Strategy A is a pure price-horizon-consensus benchmark.
+# Multiplying price strength by 0.30 preserves the current baseline score scale.
+BASELINE_PRICE_MULTIPLIER = 0.30
+BASELINE_MIN_SIGNAL_SCORE = 0.30
 
 # Strategy B: main confirmed-signal strategy.
 # Requires two-layer confirmation from Step 4.
@@ -41,6 +42,8 @@ REQUIRED_COLUMNS = [
     "divergence_score",
     "is_divergence_opportunity",
     "is_confirmed_divergence_setup",
+    "price_layer_score",
+    "price_layer_direction",
 ]
 
 
@@ -57,16 +60,21 @@ def validate_input_columns(df: pd.DataFrame) -> None:
 def add_entry_rules(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # Strategy A: baseline directional setup.
-    # This captures weak one-layer signals and is useful as a benchmark.
+    # Strategy A: pure price-only benchmark.
+    # It must remain independent of sentiment and fundamentals so that future
+    # strategy versions can be compared against the same fixed baseline.
+    df["baseline_signal_score"] = (
+        df["price_layer_score"].abs() * BASELINE_PRICE_MULTIPLIER
+    ).clip(0.0, 1.0)
+
     df["baseline_entry"] = (
-        (df["signal_direction"] != 0)
-        & (df["confirmation_score"] >= BASELINE_MIN_CONFIRMATION)
+        (df["price_layer_direction"] != 0)
+        & (df["baseline_signal_score"] >= BASELINE_MIN_SIGNAL_SCORE)
     ).astype(int)
 
     df["baseline_direction"] = np.where(
         df["baseline_entry"] == 1,
-        df["signal_direction"],
+        df["price_layer_direction"],
         0,
     ).astype(int)
 
@@ -126,10 +134,18 @@ def assign_primary_trade_rule(df: pd.DataFrame) -> pd.DataFrame:
 
     df["trade_candidate"] = (df["primary_trade_rule"] != "no_trade").astype(int)
 
-    df["trade_direction"] = np.where(
-        df["trade_candidate"] == 1,
-        df["signal_direction"],
-        0,
+    df["trade_direction"] = np.select(
+        [
+            df["primary_trade_rule"] == "confirmed_divergence",
+            df["primary_trade_rule"] == "confirmed",
+            df["primary_trade_rule"] == "baseline",
+        ],
+        [
+            df["confirmed_divergence_direction"],
+            df["confirmed_direction"],
+            df["baseline_direction"],
+        ],
+        default=0,
     ).astype(int)
 
     df["default_holding_period_days"] = df["primary_trade_rule"].map(
@@ -147,17 +163,38 @@ def assign_primary_trade_rule(df: pd.DataFrame) -> pd.DataFrame:
 def add_trade_strength(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # Baseline and confirmed trades rely mostly on confirmation.
-    df["confirmation_component"] = df["confirmation_score"].clip(0.0, 1.0)
-
-    # Divergence trades combine confirmation quality and underreaction timing.
-    df["combined_trade_score"] = np.where(
-        df["confirmed_divergence_entry"] == 1,
-        0.60 * df["confirmation_score"] + 0.40 * df["divergence_score"],
-        df["confirmation_score"],
+    # Only actual trade candidates should carry a confirmation component.
+    df["confirmation_component"] = np.where(
+        df["trade_candidate"] == 1,
+        df["confirmation_score"].clip(0.0, 1.0),
+        0.0,
     )
 
-    df["combined_trade_score"] = df["combined_trade_score"].clip(0.0, 1.0)
+    divergence_combined_score = (
+        0.60 * df["confirmation_score"]
+        + 0.40 * df["divergence_score"]
+    )
+
+    # Keep each strategy's score tied to the information that defines it.
+    # No-trade rows receive a score of zero.
+    df["combined_trade_score"] = np.select(
+        [
+            df["primary_trade_rule"] == "confirmed_divergence",
+            df["primary_trade_rule"] == "confirmed",
+            df["primary_trade_rule"] == "baseline",
+        ],
+        [
+            divergence_combined_score,
+            df["confirmation_score"],
+            df["baseline_signal_score"],
+        ],
+        default=0.0,
+    )
+
+    df["combined_trade_score"] = (
+        pd.Series(df["combined_trade_score"], index=df.index)
+        .clip(0.0, 1.0)
+    )
 
     df["signed_trade_score"] = (
         df["trade_direction"] * df["combined_trade_score"]
@@ -169,15 +206,14 @@ def add_trade_strength(df: pd.DataFrame) -> pd.DataFrame:
 def add_rule_metadata(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    # These are instructions for the later backtest engine.
-    # The current file does not execute exits yet.
-    df["exit_after_holding_period"] = 1
-    df["exit_on_signal_flip"] = 1
-    df["exit_on_divergence_close"] = np.where(
-        df["primary_trade_rule"] == "confirmed_divergence",
-        1,
-        0,
-    )
+    # These are instructions for the later event-driven backtester.
+    # They are active only for actual trade candidates.
+    df["exit_after_holding_period"] = df["trade_candidate"]
+    df["exit_on_signal_flip"] = df["trade_candidate"]
+
+    df["exit_on_divergence_close"] = (
+        df["primary_trade_rule"] == "confirmed_divergence"
+    ).astype(int)
 
     df["needs_position_sizing"] = df["trade_candidate"]
 
@@ -207,6 +243,7 @@ def build_trade_rules(df: pd.DataFrame) -> pd.DataFrame:
         "primary_trade_rule",
         "trade_candidate",
         "trade_direction",
+        "baseline_signal_score",
         "combined_trade_score",
         "signed_trade_score",
         "default_holding_period_days",

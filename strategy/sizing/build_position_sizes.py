@@ -15,9 +15,9 @@ BASE_POSITION_PCT = 0.03      # normal max before signal/vol adjustments
 MAX_POSITION_PCT = 0.05       # hard cap per trade
 MIN_POSITION_PCT = 0.001      # ignore tiny trades below 0.10%
 
-# Signal curvature
-# >1 punishes weak confirmation scores more aggressively.
-CONFIRMATION_ALPHA = 1.5
+# Curvature applied to the rule-specific sizing score.
+# Values above 1 penalize weaker setups more aggressively.
+SIZING_SCORE_ALPHA = 1.5
 
 # Volatility normalization
 VOL_LOOKBACK = 20
@@ -68,10 +68,6 @@ def validate_input_columns(df: pd.DataFrame) -> None:
         )
 
 
-def safe_clip(series: pd.Series, lower: float, upper: float) -> pd.Series:
-    return series.clip(lower=lower, upper=upper)
-
-
 def add_volatility_normalization(df: pd.DataFrame) -> pd.DataFrame:
     """
     Build a volatility penalty using FX realized volatility.
@@ -90,8 +86,12 @@ def add_volatility_normalization(df: pd.DataFrame) -> pd.DataFrame:
     for relationship_id, group in df.groupby("relationship_id", sort=False):
         group = group.sort_values("date").copy()
 
+        # Compare the current volatility estimate with volatility levels available
+        # through the previous observation, avoiding self-normalization.
+        historical_volatility_level = group["fx_volatility_20d"].shift(1)
+
         rolling_vol_mean = (
-            group["fx_volatility_20d"]
+            historical_volatility_level
             .rolling(window=VOL_LOOKBACK, min_periods=MIN_VOL_OBS)
             .mean()
         )
@@ -120,14 +120,41 @@ def add_volatility_normalization(df: pd.DataFrame) -> pd.DataFrame:
 def add_sizing_components(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
-    df["confirmation_scaled"] = (
-        df["confirmation_score"].clip(0.0, 1.0) ** CONFIRMATION_ALPHA
+    # Use the score associated with the rule that actually generated the trade:
+    # baseline -> baseline price score
+    # confirmed -> confirmation score
+    # divergence -> confirmation/divergence combination
+    df["sizing_score"] = np.where(
+        df["trade_candidate"] == 1,
+        df["combined_trade_score"].clip(0.0, 1.0),
+        0.0,
     )
 
-    df["layer_multiplier"] = (
+    df["sizing_score_scaled"] = (
+        df["sizing_score"] ** SIZING_SCORE_ALPHA
+    )
+
+    # Do not overwrite `layer_multiplier`, which belongs to the confirmation
+    # model. This is a separate sizing-specific multiplier.
+    multi_layer_multiplier = (
         df["layers_triggered"]
         .map(LAYER_MULTIPLIERS)
         .fillna(0.0)
+    )
+
+    df["sizing_layer_multiplier"] = 0.0
+
+    baseline_mask = df["primary_trade_rule"] == "baseline"
+    confirmed_mask = df["primary_trade_rule"].isin(
+        ["confirmed", "confirmed_divergence"]
+    )
+
+    # The baseline remains a fixed one-layer price strategy, even after
+    # sentiment and fundamentals become available.
+    df.loc[baseline_mask, "sizing_layer_multiplier"] = LAYER_MULTIPLIERS[1]
+
+    df.loc[confirmed_mask, "sizing_layer_multiplier"] = (
+        multi_layer_multiplier.loc[confirmed_mask]
     )
 
     df["rule_multiplier"] = (
@@ -136,17 +163,28 @@ def add_sizing_components(df: pd.DataFrame) -> pd.DataFrame:
         .fillna(0.0)
     )
 
-    # Timing multiplier:
-    # - baseline and confirmed trades do not require divergence, so they get neutral 1.0.
-    # - confirmed divergence trades get rewarded by divergence_score.
     df["divergence_timing_multiplier"] = 1.0
 
-    divergence_mask = df["primary_trade_rule"] == "confirmed_divergence"
+    divergence_mask = (
+        df["primary_trade_rule"] == "confirmed_divergence"
+    )
 
     df.loc[divergence_mask, "divergence_timing_multiplier"] = (
         df.loc[divergence_mask, "divergence_score"]
         .clip(0.0, 1.0)
     )
+
+    # Non-trades should carry no sizing multipliers.
+    no_trade_mask = df["trade_candidate"] == 0
+
+    df.loc[
+        no_trade_mask,
+        [
+            "rule_multiplier",
+            "sizing_layer_multiplier",
+            "divergence_timing_multiplier",
+        ],
+    ] = 0.0
 
     return df
 
@@ -164,8 +202,8 @@ def add_position_sizes(df: pd.DataFrame) -> pd.DataFrame:
 
     raw_size = (
         df["base_notional_usd"]
-        * df["confirmation_scaled"]
-        * df["layer_multiplier"]
+        * df["sizing_score_scaled"]
+        * df["sizing_layer_multiplier"]
         * df["rule_multiplier"]
         * df["divergence_timing_multiplier"]
         / df["fx_volatility_norm"].replace(0, np.nan)
@@ -208,17 +246,17 @@ def add_position_sizes(df: pd.DataFrame) -> pd.DataFrame:
 
 def add_strategy_specific_sizes(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Add three sizing views for later strategy comparison.
+    Add sizing alternatives for later robustness comparisons.
 
-    Strategy A:
-        Equal-size baseline.
+    Equal-size benchmark:
+        Uses the same trade entries but gives every trade equal notional.
 
-    Strategy B:
-        Signal + volatility adjusted sizing.
+    Signal-volatility sizing:
+        Uses rule-specific signal strength and FX volatility.
 
-    Strategy C:
-        Same as B for now, but reserved for later adaptive/Kelly sizing
-        after backtest results exist.
+    Adaptive sizing:
+        Placeholder for later edge-aware/Kelly sizing after robust
+        out-of-sample estimates exist.
     """
     df = df.copy()
 

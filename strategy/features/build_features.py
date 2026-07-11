@@ -13,8 +13,23 @@ RETURN_WINDOWS = [1, 3, 5]
 
 
 def rolling_zscore(series: pd.Series, window: int = ROLLING_WINDOW) -> pd.Series:
-    rolling_mean = series.rolling(window=window, min_periods=MIN_PERIODS).mean()
-    rolling_std = series.rolling(window=window, min_periods=MIN_PERIODS).std()
+    """
+    Score today's observation against information available through yesterday.
+
+    This prevents the current observation from influencing the mean and
+    standard deviation used to normalize itself.
+    """
+    historical = series.shift(1)
+
+    rolling_mean = historical.rolling(
+        window=window,
+        min_periods=MIN_PERIODS,
+    ).mean()
+
+    rolling_std = historical.rolling(
+        window=window,
+        min_periods=MIN_PERIODS,
+    ).std()
 
     return (series - rolling_mean) / rolling_std.replace(0, np.nan)
 
@@ -95,12 +110,16 @@ def add_rolling_beta_and_divergence(df: pd.DataFrame) -> pd.DataFrame:
         x = group["commodity_return_1d_aligned"]
         y = group["fx_return_1d"]
 
-        rolling_cov = x.rolling(
+        # Estimate the relationship using information through the previous day.
+        historical_x = x.shift(1)
+        historical_y = y.shift(1)
+
+        rolling_cov = historical_x.rolling(
             window=ROLLING_WINDOW,
             min_periods=MIN_PERIODS,
-        ).cov(y)
+        ).cov(historical_y)
 
-        rolling_var = x.rolling(
+        rolling_var = historical_x.rolling(
             window=ROLLING_WINDOW,
             min_periods=MIN_PERIODS,
         ).var()
@@ -192,14 +211,20 @@ def add_volatility_features(df: pd.DataFrame) -> pd.DataFrame:
     for relationship_id, group in df.groupby("relationship_id", sort=False):
         group = group.sort_values("date").copy()
 
+        historical_commodity_returns = (
+            group["commodity_return_1d_aligned"].shift(1)
+        )
+
+        historical_fx_returns = group["fx_return_1d"].shift(1)
+
         group["commodity_volatility_20d"] = (
-            group["commodity_return_1d_aligned"]
+            historical_commodity_returns
             .rolling(window=ROLLING_WINDOW, min_periods=MIN_PERIODS)
             .std()
         )
 
         group["fx_volatility_20d"] = (
-            group["fx_return_1d"]
+            historical_fx_returns
             .rolling(window=ROLLING_WINDOW, min_periods=MIN_PERIODS)
             .std()
         )
@@ -244,6 +269,22 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     df = add_relationship_id(df)
     df = df.sort_values(["relationship_id", "date"]).reset_index(drop=True)
+    
+    duplicate_mask = df.duplicated(
+        subset=["relationship_id", "date"],
+        keep=False,
+    )
+
+    if duplicate_mask.any():
+        duplicate_rows = df.loc[
+            duplicate_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Duplicate relationship/date rows found:\n"
+            f"{duplicate_rows.head(20).to_string(index=False)}"
+        )
 
     df = add_aligned_returns(df)
     df = add_sentiment_features(df)

@@ -10,6 +10,7 @@ from strategy.config.market_symbols import COMMODITY_MARKET_SYMBOLS
 
 
 OUTPUT_PATH = Path("strategy/output/daily_research_panel.csv")
+FX_PRICE_OUTPUT_PATH = Path("strategy/output/daily_fx_prices.csv")
 RETURN_WINDOWS = [1, 3, 5]
 
 
@@ -27,18 +28,32 @@ def load_market_data(conn, symbols):
     symbols = sorted(set(symbols))
 
     if not symbols:
-        return pd.DataFrame(columns=["symbol", "datetime_utc", "close"])
+        return pd.DataFrame(
+            columns=[
+                "symbol",
+                "timeframe",
+                "datetime_utc",
+                "open",
+                "high",
+                "low",
+                "close",
+            ]
+        )
 
     placeholders = ", ".join(["%s"] * len(symbols))
 
     query = f"""
         SELECT
             symbol,
+            timeframe,
             datetime_utc,
+            open,
+            high,
+            low,
             close
         FROM market_data
         WHERE symbol IN ({placeholders})
-        AND timeframe IN ('1D', 'D')
+          AND timeframe IN ('1D', 'D')
         ORDER BY symbol, datetime_utc;
     """
 
@@ -51,6 +66,9 @@ def build_daily_market_data(market_df):
             columns=[
                 "symbol",
                 "date",
+                "open",
+                "high",
+                "low",
                 "close",
                 "return_1d",
                 "return_3d",
@@ -59,16 +77,104 @@ def build_daily_market_data(market_df):
         )
 
     market_df = market_df.copy()
-    market_df["datetime_utc"] = pd.to_datetime(market_df["datetime_utc"], utc=True)
+
+    market_df["datetime_utc"] = pd.to_datetime(
+        market_df["datetime_utc"],
+        utc=True,
+    )
+
     market_df["date"] = market_df["datetime_utc"].dt.date
 
-    market_df = market_df.sort_values(["symbol", "datetime_utc"])
+    price_cols = ["open", "high", "low", "close"]
 
-    daily = (
-        market_df.groupby(["symbol", "date"], as_index=False)
-        .agg(close=("close", "last"))
-        .sort_values(["symbol", "date"])
+    for col in price_cols:
+        market_df[col] = pd.to_numeric(
+            market_df[col],
+            errors="coerce",
+        )
+
+    # Prefer the explicit 1D label when both 1D and D exist for the
+    # same symbol and date.
+    market_df["timeframe_priority"] = (
+        market_df["timeframe"]
+        .map({"1D": 0, "D": 1})
+        .fillna(2)
+        .astype(int)
     )
+
+    market_df = market_df.sort_values(
+        [
+            "symbol",
+            "date",
+            "timeframe_priority",
+            "datetime_utc",
+        ],
+        ascending=[True, True, True, False],
+    )
+
+    duplicate_count = int(
+        market_df.duplicated(
+            subset=["symbol", "date"],
+            keep=False,
+        ).sum()
+    )
+
+    if duplicate_count > 0:
+        print(
+            "Duplicate daily market rows detected before deduplication: "
+            f"{duplicate_count}"
+        )
+
+    # Daily data should contain one bar per symbol/date. Keep the
+    # preferred timeframe and most recently stored observation.
+    daily = (
+        market_df.drop_duplicates(
+            subset=["symbol", "date"],
+            keep="first",
+        )
+        [
+            [
+                "symbol",
+                "date",
+                "open",
+                "high",
+                "low",
+                "close",
+            ]
+        ]
+        .sort_values(["symbol", "date"])
+        .reset_index(drop=True)
+    )
+
+    missing_ohlc = daily[price_cols].isna().any(axis=1)
+
+    if missing_ohlc.any():
+        bad_rows = daily.loc[
+            missing_ohlc,
+            ["symbol", "date", *price_cols],
+        ]
+
+        raise ValueError(
+            "Daily market rows with missing OHLC values found:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    invalid_ohlc = (
+        (daily["high"] < daily["low"])
+        | (daily["high"] < daily[["open", "close"]].max(axis=1))
+        | (daily["low"] > daily[["open", "close"]].min(axis=1))
+    )
+
+    if invalid_ohlc.any():
+        bad_rows = daily.loc[
+            invalid_ohlc,
+            ["symbol", "date", *price_cols],
+        ]
+
+        raise ValueError(
+            "Invalid daily OHLC relationships found:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
 
     for window in RETURN_WINDOWS:
         daily[f"return_{window}d"] = (
@@ -154,6 +260,9 @@ def build_relationship_panel(daily_market):
 
         commodity_daily = commodity_daily.rename(
             columns={
+                "open": "commodity_open",
+                "high": "commodity_high",
+                "low": "commodity_low",
                 "close": "commodity_close",
                 "return_1d": "commodity_return_1d",
                 "return_3d": "commodity_return_3d",
@@ -163,6 +272,9 @@ def build_relationship_panel(daily_market):
 
         fx_daily = fx_daily.rename(
             columns={
+                "open": "fx_open",
+                "high": "fx_high",
+                "low": "fx_low",
                 "close": "fx_close",
                 "return_1d": "fx_return_1d",
                 "return_3d": "fx_return_3d",
@@ -257,17 +369,25 @@ def attach_sentiment(panel, daily_sentiment):
 
     for col in fill_zero_cols:
         if col in panel.columns:
-            panel[col] = panel[col].fillna(0)
+            panel[col] = (
+                pd.to_numeric(panel[col], errors="coerce")
+                .fillna(0.0)
+            )
 
     return panel
 
 
 def main():
     required_symbols = set()
+    required_fx_symbols = set()
 
     for mapping in CANDIDATE_ASSET_FX_MAPPINGS:
-        required_symbols.add(COMMODITY_MARKET_SYMBOLS[mapping["commodity"]])
-        required_symbols.add(mapping["fx_symbol"])
+        commodity_symbol = COMMODITY_MARKET_SYMBOLS[mapping["commodity"]]
+        fx_symbol = mapping["fx_symbol"]
+
+        required_symbols.add(commodity_symbol)
+        required_symbols.add(fx_symbol)
+        required_fx_symbols.add(fx_symbol)
 
     with get_connection() as conn:
         market_df = load_market_data(conn, required_symbols)
@@ -282,10 +402,85 @@ def main():
             print(f"- {symbol}")
 
     daily_market = build_daily_market_data(market_df)
+    daily_fx_prices = (
+        daily_market[
+            daily_market["symbol"].isin(required_fx_symbols)
+        ]
+        .rename(
+            columns={
+                "symbol": "fx_symbol",
+                "open": "fx_open",
+                "high": "fx_high",
+                "low": "fx_low",
+                "close": "fx_close",
+            }
+        )
+        [
+            [
+                "date",
+                "fx_symbol",
+                "fx_open",
+                "fx_high",
+                "fx_low",
+                "fx_close",
+            ]
+        ]
+        .sort_values(["date", "fx_symbol"])
+        .reset_index(drop=True)
+    )
+
+    duplicate_fx_mask = daily_fx_prices.duplicated(
+        subset=["date", "fx_symbol"],
+        keep=False,
+    )
+
+    if duplicate_fx_mask.any():
+        duplicate_rows = daily_fx_prices.loc[
+            duplicate_fx_mask,
+            ["date", "fx_symbol"],
+        ]
+
+        raise ValueError(
+            "Duplicate FX price rows found:\n"
+            f"{duplicate_rows.head(20).to_string(index=False)}"
+        )
     daily_sentiment = build_daily_sentiment(sentiment_df)
 
     panel = build_relationship_panel(daily_market)
     panel = attach_sentiment(panel, daily_sentiment)
+    
+    duplicate_panel_mask = panel.duplicated(
+        subset=[
+            "date",
+            "commodity",
+            "currency",
+            "fx_symbol",
+        ],
+        keep=False,
+    )
+
+    if duplicate_panel_mask.any():
+        duplicate_rows = panel.loc[
+            duplicate_panel_mask,
+            [
+                "date",
+                "commodity",
+                "currency",
+                "fx_symbol",
+            ],
+        ]
+
+        raise ValueError(
+            "Duplicate relationship-panel rows found:\n"
+            f"{duplicate_rows.head(20).to_string(index=False)}"
+        )
+
+    FX_PRICE_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    daily_fx_prices.to_csv(FX_PRICE_OUTPUT_PATH, index=False)
+    
+    print(f"Saved daily FX prices to {FX_PRICE_OUTPUT_PATH}")
+    print(f"FX price rows: {len(daily_fx_prices)}")
+    print(f"FX symbols: {daily_fx_prices['fx_symbol'].nunique()}")
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     panel.to_csv(OUTPUT_PATH, index=False)
