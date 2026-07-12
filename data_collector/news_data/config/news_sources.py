@@ -5,9 +5,9 @@ RSS_FEEDS = {
     "https://news.google.com/rss/search?q=site%3Areuters.com%20forex%20OR%20currency%20OR%20dollar&hl=en-US&gl=US&ceid=US%3Aen",
     ],
 
-    "bloomberg": [
-        "https://feeds.bloomberg.com/markets/news.rss",
-        "https://feeds.bloomberg.com/technology/news.rss",
+    "marketwatch": [
+        "https://feeds.marketwatch.com/marketwatch/topstories/",
+        "https://feeds.marketwatch.com/marketwatch/marketpulse/",
     ],
 
     "investing": [

@@ -1,6 +1,6 @@
 import hashlib
 import random
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import feedparser
@@ -65,7 +65,7 @@ def collect_rss_articles(source: str, feed_urls: list[str]) -> list[dict]:
                     "published": getattr(
                         entry,
                         "published",
-                        datetime.utcnow().isoformat(),
+                        datetime.now(timezone.utc).isoformat(),
                     ),
                     "summary": getattr(entry, "summary", "")[:1000],
                 }
