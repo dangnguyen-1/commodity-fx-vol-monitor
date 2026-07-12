@@ -7,29 +7,54 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-INPUT_FILE = Path("data_collector/fundamental_data/output/trade_data_long.csv")
+DEFAULT_INPUT_FILE = Path(
+    "data_collector/fundamental_data/output/trade_data_backfill_long.csv"
+)
+
+
+def get_input_file() -> Path:
+    configured = os.getenv("COMTRADE_INPUT_FILE", "").strip()
+    return Path(configured) if configured else DEFAULT_INPUT_FILE
 
 
 def get_database_url() -> str:
     database_url = os.getenv("DATABASE_URL")
-
     if not database_url:
         raise ValueError("Missing DATABASE_URL in .env")
-
     return database_url
 
 
 def clean_value(value):
-    if pd.isna(value):
-        return None
-    return value
+    return None if pd.isna(value) else value
 
 
 def load_trade_data() -> None:
-    if not INPUT_FILE.exists():
-        raise FileNotFoundError(f"Missing input file: {INPUT_FILE}")
+    input_file = get_input_file()
+    if not input_file.exists():
+        raise FileNotFoundError(f"Missing input file: {input_file}")
 
-    df = pd.read_csv(INPUT_FILE)
+    df = pd.read_csv(
+        input_file,
+        dtype={"country": str, "commodity": str, "period": str},
+    )
+
+    required = {
+        "country",
+        "commodity",
+        "period",
+        "exports_usd",
+        "imports_usd",
+        "net_usd",
+        "note",
+    }
+    missing = sorted(required - set(df.columns))
+    if missing:
+        raise ValueError("Missing columns: " + ", ".join(missing))
+
+    df = df.drop_duplicates(
+        subset=["country", "commodity", "period"],
+        keep="last",
+    )
 
     query = """
         INSERT INTO fundamental_trade_data (
@@ -49,11 +74,11 @@ def load_trade_data() -> None:
             imports_usd = EXCLUDED.imports_usd,
             net_usd = EXCLUDED.net_usd,
             note = EXCLUDED.note,
+            provider = EXCLUDED.provider,
             received_at_utc = NOW();
     """
 
     conn = psycopg2.connect(get_database_url())
-
     try:
         with conn:
             with conn.cursor() as cur:
@@ -72,8 +97,10 @@ def load_trade_data() -> None:
                         ),
                     )
 
-        print(f"Loaded {len(df)} rows into fundamental_trade_data")
-
+        print(
+            f"Loaded {len(df)} rows from {input_file} "
+            "into fundamental_trade_data"
+        )
     finally:
         conn.close()
 
