@@ -10,9 +10,9 @@ OUTPUT_PATH = Path("strategy/output/daily_signals.csv")
 # Minimum thresholds for each layer to count as active.
 PRICE_LAYER_THRESHOLD = 0.30
 SENTIMENT_LAYER_THRESHOLD = 0.05
+FUNDAMENTAL_LAYER_THRESHOLD = 0.10
 
-# Layer multipliers mirror the later sizing idea:
-# 1 agreeing layer = weaker conviction, 2 layers = stronger, 3 later when fundamentals are added.
+# More agreeing active layers produce greater conviction.
 LAYER_MULTIPLIERS = {
     0: 0.0,
     1: 0.3,
@@ -31,9 +31,11 @@ REQUIRED_COLUMNS = [
     "commodity_return_1d_aligned",
     "commodity_return_3d_aligned",
     "commodity_return_5d_aligned",
-    "net_sentiment_aligned",
+    "sentiment_signal",
     "total_news_count",
     "sentiment_confidence_weighted",
+    "fundamental_signal",
+    "has_active_fundamental",
 ]
 
 
@@ -76,24 +78,69 @@ def weighted_price_layer(row: pd.Series) -> float:
 
 def sentiment_layer(row: pd.Series) -> float:
     """
-    Convert aligned sentiment into one signed sentiment layer.
+    Convert relationship-level sentiment into a signed layer.
 
-    Positive value means sentiment points toward FX strength.
-    Negative value means sentiment points toward FX weakness.
+    Positive values support FX strength in the mapped relationship.
+    Negative values support FX weakness.
+
+    Confidence weighting affects signal strength but not direction.
+    Output range: [-1, 1].
+    """
+    news_count = row.get("total_news_count", 0)
+
+    if pd.isna(news_count) or news_count <= 0:
+        return 0.0
+
+    weighted_sentiment = row.get(
+        "sentiment_confidence_weighted",
+        np.nan,
+    )
+
+    raw_sentiment = row.get(
+        "sentiment_signal",
+        np.nan,
+    )
+
+    # Fall back to the raw relationship-level score if confidence
+    # is unavailable.
+    value = (
+        weighted_sentiment
+        if pd.notna(weighted_sentiment)
+        else raw_sentiment
+    )
+
+    if pd.isna(value):
+        return 0.0
+
+    return float(np.clip(value, -1.0, 1.0))
+
+
+def fundamental_layer(row: pd.Series) -> float:
+    """
+    Convert the usable relationship-level fundamental signal into a layer.
+
+    fundamental_signal is already directionally aligned:
+    positive values support FX strength and negative values support weakness.
 
     Output range: [-1, 1].
     """
-    if row.get("total_news_count", 0) <= 0:
+    active = row.get(
+        "has_active_fundamental",
+        0,
+    )
+
+    if pd.isna(active) or active != 1:
         return 0.0
 
-    raw_sentiment = row.get("net_sentiment_aligned", 0.0)
+    value = row.get(
+        "fundamental_signal",
+        np.nan,
+    )
 
-    if pd.isna(raw_sentiment):
+    if pd.isna(value):
         return 0.0
 
-    # net_sentiment_aligned can exceed +/-1 because commodity and currency
-    # sentiment are combined, so we clip to keep the layer bounded.
-    return float(np.clip(raw_sentiment, -1.0, 1.0))
+    return float(np.clip(value, -1.0, 1.0))
 
 
 def get_layer_direction(layer_value: float, threshold: float) -> int:
@@ -116,24 +163,52 @@ def confirmation_bucket(score: float) -> str:
     return "none"
 
 
-def add_confirmation_score(df: pd.DataFrame) -> pd.DataFrame:
+def add_confirmation_score(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     df = df.copy()
 
-    df["price_layer_score"] = df.apply(weighted_price_layer, axis=1)
-    df["sentiment_layer_score"] = df.apply(sentiment_layer, axis=1)
-
-    # Fundamental layer will be added later after we handle monthly trade data properly.
-    df["fundamental_layer_score"] = 0.0
-
-    df["price_layer_direction"] = df["price_layer_score"].apply(
-        lambda x: get_layer_direction(x, PRICE_LAYER_THRESHOLD)
+    df["price_layer_score"] = df.apply(
+        weighted_price_layer,
+        axis=1,
     )
 
-    df["sentiment_layer_direction"] = df["sentiment_layer_score"].apply(
-        lambda x: get_layer_direction(x, SENTIMENT_LAYER_THRESHOLD)
+    df["sentiment_layer_score"] = df.apply(
+        sentiment_layer,
+        axis=1,
     )
 
-    df["fundamental_layer_direction"] = 0
+    df["fundamental_layer_score"] = df.apply(
+        fundamental_layer,
+        axis=1,
+    )
+
+    df["price_layer_direction"] = (
+        df["price_layer_score"].apply(
+            lambda value: get_layer_direction(
+                value,
+                PRICE_LAYER_THRESHOLD,
+            )
+        )
+    )
+
+    df["sentiment_layer_direction"] = (
+        df["sentiment_layer_score"].apply(
+            lambda value: get_layer_direction(
+                value,
+                SENTIMENT_LAYER_THRESHOLD,
+            )
+        )
+    )
+
+    df["fundamental_layer_direction"] = (
+        df["fundamental_layer_score"].apply(
+            lambda value: get_layer_direction(
+                value,
+                FUNDAMENTAL_LAYER_THRESHOLD,
+            )
+        )
+    )
 
     layer_direction_cols = [
         "price_layer_direction",
@@ -153,66 +228,91 @@ def add_confirmation_score(df: pd.DataFrame) -> pd.DataFrame:
         .sum(axis=1)
     )
 
-    # Directional agreement:
-    # +1 means all active layers point bullish for FX.
-    # -1 means all active layers point bearish for FX.
-    # 0 means no signal or layers cancel out.
-    direction_sum = df[layer_direction_cols].sum(axis=1)
-
-    df["signal_direction"] = np.where(
-        df["layers_triggered"] == 0,
-        0,
-        np.sign(direction_sum),
-    ).astype(int)
-
-    # Agreement ratio:
-    # 1.0 means active layers fully agree.
-    # 0.0 means active layers fully cancel.
-    df["layer_agreement"] = np.where(
-        df["layers_triggered"] > 0,
-        np.abs(direction_sum) / df["layers_triggered"],
-        0.0,
+    direction_sum = (
+        df[layer_direction_cols]
+        .sum(axis=1)
     )
 
-    # Average strength of active layers only.
-    active_strengths = []
+    # +1 means the net active-layer direction is bullish for FX.
+    # -1 means it is bearish.
+    # 0 means there is no active signal or the active layers cancel.
+    df["signal_direction"] = np.where(
+        df["layers_triggered"].gt(0),
+        np.sign(direction_sum),
+        0,
+    ).astype(int)
 
-    for _, row in df.iterrows():
-        strengths = []
+    triggered_denominator = (
+        df["layers_triggered"]
+        .replace(0, np.nan)
+    )
 
-        for direction_col, score_col in zip(layer_direction_cols, layer_score_cols):
-            if row[direction_col] != 0:
-                strengths.append(abs(row[score_col]))
+    df["layer_agreement"] = (
+        direction_sum.abs()
+        / triggered_denominator
+    ).fillna(0.0).clip(0.0, 1.0)
 
-        if strengths:
-            active_strengths.append(float(np.mean(strengths)))
-        else:
-            active_strengths.append(0.0)
+    # Calculate average absolute strength using only layers that passed
+    # their activation thresholds.
+    active_mask = (
+        df[layer_direction_cols]
+        .ne(0)
+        .to_numpy()
+    )
 
-    df["avg_active_layer_strength"] = active_strengths
+    absolute_scores = (
+        df[layer_score_cols]
+        .abs()
+        .fillna(0.0)
+        .to_numpy(dtype=float)
+    )
 
-    df["layer_multiplier"] = df["layers_triggered"].map(LAYER_MULTIPLIERS).fillna(0.0)
+    active_strength_sum = np.where(
+        active_mask,
+        absolute_scores,
+        0.0,
+    ).sum(axis=1)
+
+    active_layer_count = active_mask.sum(axis=1)
+
+    df["avg_active_layer_strength"] = np.divide(
+        active_strength_sum,
+        active_layer_count,
+        out=np.zeros(
+            len(df),
+            dtype=float,
+        ),
+        where=active_layer_count > 0,
+    )
+
+    df["layer_multiplier"] = (
+        df["layers_triggered"]
+        .map(LAYER_MULTIPLIERS)
+        .fillna(0.0)
+    )
 
     df["confirmation_score"] = (
         df["avg_active_layer_strength"]
         * df["layer_agreement"]
         * df["layer_multiplier"]
+    ).clip(0.0, 1.0)
+
+    df["confirmation_bucket"] = (
+        df["confirmation_score"]
+        .apply(confirmation_bucket)
     )
 
-    df["confirmation_score"] = df["confirmation_score"].clip(0.0, 1.0)
-
-    df["confirmation_bucket"] = df["confirmation_score"].apply(confirmation_bucket)
-
-    # This is not the final trade signal yet.
-    # It only means the setup has enough confirmation to be considered later.
+    # A confirmed setup requires at least two active layers. Conflicting
+    # layers reduce layer_agreement and therefore confirmation_score.
     df["is_confirmed_setup"] = (
-        (df["signal_direction"] != 0)
-        & (df["layers_triggered"] >= 2)
-        & (df["confirmation_score"] >= 0.40)
+        df["signal_direction"].ne(0)
+        & df["layers_triggered"].ge(2)
+        & df["confirmation_score"].ge(0.40)
     ).astype(int)
 
     df["signed_confirmation_score"] = (
-        df["signal_direction"] * df["confirmation_score"]
+        df["signal_direction"]
+        * df["confirmation_score"]
     )
 
     return df
@@ -236,6 +336,22 @@ def build_signals(df: pd.DataFrame) -> pd.DataFrame:
     validate_input_columns(df)
 
     df["date"] = pd.to_datetime(df["date"])
+    
+    duplicate_mask = df.duplicated(
+        subset=["relationship_id", "date"],
+        keep=False,
+    )
+
+    if duplicate_mask.any():
+        duplicate_rows = df.loc[
+            duplicate_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Duplicate relationship/date rows found:\n"
+            f"{duplicate_rows.head(20).to_string(index=False)}"
+        )
 
     df = add_confirmation_score(df)
 
