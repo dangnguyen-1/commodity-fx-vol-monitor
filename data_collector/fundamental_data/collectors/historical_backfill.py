@@ -38,7 +38,7 @@ MAX_RETRIES = 4
 REQUEST_TIMEOUT_SECONDS = 120
 
 OUTPUT_ROOT = Path("data_collector/fundamental_data/output")
-BACKFILL_DIR = OUTPUT_ROOT / "backfill_v2"
+BACKFILL_DIR = OUTPUT_ROOT / "backfill_v3"
 CHECKPOINT_DIR = BACKFILL_DIR / "checkpoints"
 COMMODITY_DIR = BACKFILL_DIR / "commodities"
 STATE_DIR = BACKFILL_DIR / "state"
@@ -275,8 +275,15 @@ def normalize_records(job: RequestJob, records: list[dict]) -> pd.DataFrame:
     totals: dict[tuple[str, str], float] = {}
 
     for record in records:
-        reporter = str(record.get("reporterCode", "")).strip()
+        reporter_raw = record.get("reporterCode")
+
+        try:
+            reporter = f"{int(reporter_raw):03d}"
+        except (TypeError, ValueError):
+            continue
+
         period = str(record.get("period", "")).strip()
+
         iso3 = m49_to_iso3.get(reporter)
 
         if iso3 not in job.countries or period not in job.periods:

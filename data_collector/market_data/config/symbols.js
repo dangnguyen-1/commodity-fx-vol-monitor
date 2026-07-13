@@ -25,6 +25,11 @@ const futures = [
   'NYMEX:HO1!',
   'ABAXX:GOM1!',
   'COMEX:LTH1!',
+  'COMEX:UX1!',
+];
+
+const proxies = [
+  'AMEX:LIT',
 ];
 
 const fx = [
@@ -59,4 +64,5 @@ const fx = [
 module.exports = {
   futures,
   fx,
+  proxies,
 };

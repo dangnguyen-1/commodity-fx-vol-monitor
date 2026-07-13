@@ -4,7 +4,7 @@ COMMODITY_MARKET_SYMBOLS = {
     "Natural Gas": "NYMEX:NG1!",
     "Gasoline": "NYMEX:RB1!",
     "Coal": "ICEEUR:NCF1!",
-    "Uranium": "FX:Uranium",
+    "Uranium": "COMEX:UX1!",
     "Gold": "COMEX:GC1!",
     "Silver": "COMEX:SI1!",
     "Iron Ore": "SGX:FEF1!",
