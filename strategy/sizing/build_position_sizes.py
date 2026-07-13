@@ -55,16 +55,119 @@ REQUIRED_COLUMNS = [
     "combined_trade_score",
     "layers_triggered",
     "fx_volatility_20d",
+    "default_holding_period_days",
 ]
 
 
 def validate_input_columns(df: pd.DataFrame) -> None:
-    missing = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    missing = [
+        column
+        for column in REQUIRED_COLUMNS
+        if column not in df.columns
+    ]
 
     if missing:
         raise ValueError(
             "Missing required columns in daily_trade_candidates.csv:\n"
-            + "\n".join(f"- {col}" for col in missing)
+            + "\n".join(
+                f"- {column}"
+                for column in missing
+            )
+        )
+
+
+def validate_input_rows(df: pd.DataFrame) -> None:
+    duplicate_mask = df.duplicated(
+        subset=["relationship_id", "date"],
+        keep=False,
+    )
+
+    if duplicate_mask.any():
+        bad_rows = df.loc[
+            duplicate_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Duplicate relationship/date rows found:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    weekend_mask = df["date"].dt.dayofweek >= 5
+
+    if weekend_mask.any():
+        bad_rows = df.loc[
+            weekend_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Weekend rows found in daily_trade_candidates.csv:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    invalid_direction = ~df["trade_direction"].fillna(0).isin(
+        [-1, 0, 1]
+    )
+
+    if invalid_direction.any():
+        bad_rows = df.loc[
+            invalid_direction,
+            [
+                "relationship_id",
+                "date",
+                "trade_direction",
+            ],
+        ]
+
+        raise ValueError(
+            "Invalid trade directions:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    invalid_score = (
+        df["combined_trade_score"].notna()
+        & ~df["combined_trade_score"].between(0, 1)
+    )
+
+    if invalid_score.any():
+        bad_rows = df.loc[
+            invalid_score,
+            [
+                "relationship_id",
+                "date",
+                "combined_trade_score",
+            ],
+        ]
+
+        raise ValueError(
+            "Combined trade scores outside [0, 1]:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    invalid_candidate = (
+        df["trade_candidate"].eq(1)
+        & (
+            ~df["trade_direction"].isin([-1, 1])
+            | df["default_holding_period_days"].lt(1)
+        )
+    )
+
+    if invalid_candidate.any():
+        bad_rows = df.loc[
+            invalid_candidate,
+            [
+                "relationship_id",
+                "date",
+                "trade_candidate",
+                "trade_direction",
+                "default_holding_period_days",
+            ],
+        ]
+
+        raise ValueError(
+            "Invalid trade-candidate rows:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
         )
 
 
@@ -163,19 +266,16 @@ def add_sizing_components(df: pd.DataFrame) -> pd.DataFrame:
         .fillna(0.0)
     )
 
-    df["divergence_timing_multiplier"] = 1.0
-
-    divergence_mask = (
-        df["primary_trade_rule"] == "confirmed_divergence"
-    )
-
-    df.loc[divergence_mask, "divergence_timing_multiplier"] = (
-        df.loc[divergence_mask, "divergence_score"]
-        .clip(0.0, 1.0)
+    # Divergence strength is already included in combined_trade_score.
+    # Keep this multiplier neutral for all valid trades.
+    df["divergence_timing_multiplier"] = np.where(
+        df["trade_candidate"].eq(1),
+        1.0,
+        0.0,
     )
 
     # Non-trades should carry no sizing multipliers.
-    no_trade_mask = df["trade_candidate"] == 0
+    no_trade_mask = df["trade_candidate"].eq(0)
 
     df.loc[
         no_trade_mask,
@@ -282,6 +382,75 @@ def add_strategy_specific_sizes(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def validate_sized_output(
+    df: pd.DataFrame,
+) -> None:
+    invalid_size = (
+        df["position_size_usd"].lt(0)
+        | df["position_size_usd"].gt(
+            df["hard_cap_usd"] + 1e-9
+        )
+    )
+
+    if invalid_size.any():
+        bad_rows = df.loc[
+            invalid_size,
+            [
+                "relationship_id",
+                "date",
+                "position_size_usd",
+                "hard_cap_usd",
+            ],
+        ]
+
+        raise ValueError(
+            "Invalid position sizes:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    non_trade_positions = (
+        df["trade_candidate"].eq(0)
+        & df["position_size_usd"].ne(0)
+    )
+
+    if non_trade_positions.any():
+        bad_rows = df.loc[
+            non_trade_positions,
+            [
+                "relationship_id",
+                "date",
+                "trade_candidate",
+                "position_size_usd",
+            ],
+        ]
+
+        raise ValueError(
+            "Non-trade rows have nonzero positions:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    inconsistent_position_flag = (
+        df["has_position"]
+        != df["position_size_usd"].gt(0).astype(int)
+    )
+
+    if inconsistent_position_flag.any():
+        bad_rows = df.loc[
+            inconsistent_position_flag,
+            [
+                "relationship_id",
+                "date",
+                "has_position",
+                "position_size_usd",
+            ],
+        ]
+
+        raise ValueError(
+            "Inconsistent has_position values:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+
 def build_position_sizes(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -291,10 +460,14 @@ def build_position_sizes(df: pd.DataFrame) -> pd.DataFrame:
 
     df["date"] = pd.to_datetime(df["date"])
 
+    validate_input_rows(df)
+
     df = add_volatility_normalization(df)
     df = add_sizing_components(df)
     df = add_position_sizes(df)
     df = add_strategy_specific_sizes(df)
+
+    validate_sized_output(df)
 
     front_cols = [
         "date",
