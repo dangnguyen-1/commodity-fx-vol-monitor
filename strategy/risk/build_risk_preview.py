@@ -316,8 +316,8 @@ def main() -> None:
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     risk_controlled.to_csv(OUTPUT_PATH, index=False)
 
-    print(f"Saved diagnostic risk preview to {OUTPUT_PATH}")
-    print("The event-driven backtester remains the authoritative portfolio risk-control layer.")
+    print(f"Saved risk-approved trades to {OUTPUT_PATH}")
+    print("Note: run_backtest.py should continue reading daily_sized_trades.csv.")
     print(f"Rows: {len(risk_controlled)}")
     print(f"Columns: {len(risk_controlled.columns)}")
 

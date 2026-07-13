@@ -47,11 +47,16 @@ REQUIRED_CANDIDATE_COLUMNS = [
     "primary_trade_rule",
     "trade_candidate",
     "trade_direction",
+    "signal_direction",
+    "price_layer_direction",
     "has_position",
     "position_size_pct",
     "combined_trade_score",
     "confirmation_score",
     "divergence_score",
+    "is_divergence_opportunity",
+    "exit_on_signal_flip",
+    "exit_on_divergence_close",
     "default_holding_period_days",
 ]
 
@@ -102,16 +107,50 @@ def load_candidates() -> pd.DataFrame:
     numeric_cols = [
         "trade_candidate",
         "trade_direction",
+        "signal_direction",
+        "price_layer_direction",
         "has_position",
         "position_size_pct",
         "combined_trade_score",
         "confirmation_score",
         "divergence_score",
+        "is_divergence_opportunity",
+        "exit_on_signal_flip",
+        "exit_on_divergence_close",
         "default_holding_period_days",
     ]
 
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
+        
+    duplicate_mask = df.duplicated(
+        ["relationship_id", "date"],
+        keep=False,
+    )
+
+    if duplicate_mask.any():
+        bad_rows = df.loc[
+            duplicate_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Duplicate relationship/date candidate rows:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    weekend_mask = df["date"].dt.dayofweek >= 5
+
+    if weekend_mask.any():
+        bad_rows = df.loc[
+            weekend_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Weekend candidate rows found:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
 
     df["risk_rule_priority"] = (
         df["primary_trade_rule"]
@@ -172,14 +211,23 @@ def attach_execution_schedule(
     fx_prices: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Signals are formed after the close on signal_date.
+    All signals are formed after the close on signal_date.
 
-    Entry occurs at the next available FX open. A holding period of N days
-    exits at the FX open N trading observations after entry.
+    The next available FX open is therefore:
+    - the entry time for a new trade;
+    - the earliest execution time for a later exit instruction.
+
+    Fixed-horizon exits remain scheduled N FX trading observations after entry.
     """
     candidates = candidates.copy()
 
     candidates["signal_date"] = candidates["date"]
+
+    # Available for every daily relationship row, including non-entry rows.
+    candidates["signal_execution_date"] = pd.NaT
+    candidates["signal_execution_price"] = np.nan
+
+    # Entry-specific scheduling fields.
     candidates["entry_date"] = pd.NaT
     candidates["scheduled_exit_date"] = pd.NaT
     candidates["scheduled_entry_price"] = np.nan
@@ -188,48 +236,117 @@ def attach_execution_schedule(
 
     price_groups: dict[str, pd.DataFrame] = {
         symbol: group.sort_values("date").reset_index(drop=True)
-        for symbol, group in fx_prices.groupby("fx_symbol", sort=False)
+        for symbol, group in fx_prices.groupby(
+            "fx_symbol",
+            sort=False,
+        )
     }
 
     candidate_mask = (
-        (candidates["trade_candidate"] == 1)
-        & (candidates["has_position"] == 1)
-        & (candidates["trade_direction"].isin([-1, 1]))
-        & (candidates["position_size_pct"] > 0)
-        & (candidates["default_holding_period_days"] >= 1)
+        candidates["trade_candidate"].eq(1)
+        & candidates["has_position"].eq(1)
+        & candidates["trade_direction"].isin([-1, 1])
+        & candidates["position_size_pct"].gt(0)
+        & candidates["default_holding_period_days"].ge(1)
     )
 
-    for idx, row in candidates.loc[candidate_mask].iterrows():
+    for idx, row in candidates.iterrows():
         symbol = row["fx_symbol"]
         price_group = price_groups.get(symbol)
 
         if price_group is None or price_group.empty:
-            candidates.at[idx, "schedule_status"] = "missing_fx_symbol"
+            if candidate_mask.at[idx]:
+                candidates.at[
+                    idx,
+                    "schedule_status",
+                ] = "missing_fx_symbol"
             continue
 
-        dates = price_group["date"].to_numpy(dtype="datetime64[ns]")
-        signal_date = np.datetime64(row["signal_date"], "ns")
+        dates = price_group[
+            "date"
+        ].to_numpy(dtype="datetime64[ns]")
 
-        entry_position = int(np.searchsorted(dates, signal_date, side="right"))
-        if entry_position >= len(price_group):
-            candidates.at[idx, "schedule_status"] = "missing_next_open"
+        signal_date = np.datetime64(
+            row["signal_date"],
+            "ns",
+        )
+
+        execution_position = int(
+            np.searchsorted(
+                dates,
+                signal_date,
+                side="right",
+            )
+        )
+
+        if execution_position >= len(price_group):
+            if candidate_mask.at[idx]:
+                candidates.at[
+                    idx,
+                    "schedule_status",
+                ] = "missing_next_open"
             continue
 
-        hold_days = int(row["default_holding_period_days"])
-        exit_position = entry_position + hold_days
+        execution_row = price_group.iloc[
+            execution_position
+        ]
+
+        candidates.at[
+            idx,
+            "signal_execution_date",
+        ] = execution_row["date"]
+
+        candidates.at[
+            idx,
+            "signal_execution_price",
+        ] = float(execution_row["fx_open"])
+
+        if not candidate_mask.at[idx]:
+            continue
+
+        hold_days = int(
+            row["default_holding_period_days"]
+        )
+
+        exit_position = (
+            execution_position + hold_days
+        )
 
         if exit_position >= len(price_group):
-            candidates.at[idx, "schedule_status"] = "missing_exit_open"
+            candidates.at[
+                idx,
+                "schedule_status",
+            ] = "missing_exit_open"
             continue
 
-        entry_row = price_group.iloc[entry_position]
-        exit_row = price_group.iloc[exit_position]
+        exit_row = price_group.iloc[
+            exit_position
+        ]
 
-        candidates.at[idx, "entry_date"] = entry_row["date"]
-        candidates.at[idx, "scheduled_exit_date"] = exit_row["date"]
-        candidates.at[idx, "scheduled_entry_price"] = float(entry_row["fx_open"])
-        candidates.at[idx, "scheduled_exit_price"] = float(exit_row["fx_open"])
-        candidates.at[idx, "schedule_status"] = "scheduled"
+        candidates.at[
+            idx,
+            "entry_date",
+        ] = execution_row["date"]
+
+        candidates.at[
+            idx,
+            "scheduled_exit_date",
+        ] = exit_row["date"]
+
+        candidates.at[
+            idx,
+            "scheduled_entry_price",
+        ] = float(execution_row["fx_open"])
+
+        candidates.at[
+            idx,
+            "scheduled_exit_price",
+        ] = float(exit_row["fx_open"])
+
+        candidates.at[
+            idx,
+            "schedule_status",
+        ] = "scheduled"
 
     return candidates
 
@@ -253,16 +370,35 @@ def summarize_open_exposure(
     total_gross = 0.0
 
     for position in open_positions:
-        notional = float(position["notional_usd"])
+        notional = float(
+            position["notional_usd"]
+        )
+
         currency = position["currency"]
         commodity = position["commodity"]
         fx_symbol = position["fx_symbol"]
 
         total_gross += notional
-        currency_gross[currency] = currency_gross.get(currency, 0.0) + notional
-        currency_count[currency] = currency_count.get(currency, 0) + 1
-        commodity_count[commodity] = commodity_count.get(commodity, 0) + 1
-        fx_symbol_count[fx_symbol] = fx_symbol_count.get(fx_symbol, 0) + 1
+
+        currency_gross[currency] = (
+            currency_gross.get(currency, 0.0)
+            + notional
+        )
+
+        currency_count[currency] = (
+            currency_count.get(currency, 0)
+            + 1
+        )
+
+        commodity_count[commodity] = (
+            commodity_count.get(commodity, 0)
+            + 1
+        )
+
+        fx_symbol_count[fx_symbol] = (
+            fx_symbol_count.get(fx_symbol, 0)
+            + 1
+        )
 
     return {
         "total_gross": total_gross,
@@ -273,6 +409,74 @@ def summarize_open_exposure(
     }
 
 
+def determine_exit_instruction(
+    position: dict[str, Any],
+    current_date: pd.Timestamp,
+    signal_action_lookup: dict[
+        tuple[pd.Timestamp, str],
+        dict[str, Any],
+    ],
+) -> tuple[str | None, pd.Timestamp | None]:
+    """
+    Determine whether an existing position exits at the current open.
+
+    A daily signal dated t can only affect execution at the next available
+    open, so the lookup is keyed by signal_execution_date.
+    """
+    action = signal_action_lookup.get(
+        (
+            current_date,
+            position["relationship_id"],
+        )
+    )
+
+    if action is not None:
+        if (
+            position["primary_trade_rule"]
+            == "baseline"
+        ):
+            current_direction = action.get(
+                "price_layer_direction"
+            )
+        else:
+            current_direction = action.get(
+                "signal_direction"
+            )
+
+        if (
+            position["exit_on_signal_flip"] == 1
+            and pd.notna(current_direction)
+            and int(current_direction)
+            == -int(position["trade_direction"])
+        ):
+            return (
+                "signal_flip",
+                pd.Timestamp(action["signal_date"]),
+            )
+
+        divergence_active = action.get(
+            "is_divergence_opportunity"
+        )
+
+        if (
+            position["exit_on_divergence_close"] == 1
+            and pd.notna(divergence_active)
+            and int(divergence_active) == 0
+        ):
+            return (
+                "divergence_close",
+                pd.Timestamp(action["signal_date"]),
+            )
+
+    if (
+        pd.Timestamp(position["scheduled_exit_date"])
+        <= current_date
+    ):
+        return "holding_period", None
+
+    return None, None
+
+
 def run_event_backtest(
     candidates: pd.DataFrame,
     fx_prices: pd.DataFrame,
@@ -281,6 +485,59 @@ def run_event_backtest(
     round_trip_cost_bps: float = ROUND_TRIP_COST_BPS,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     candidates = attach_execution_schedule(candidates, fx_prices)
+    
+    signal_actions = candidates.loc[
+        candidates["signal_execution_date"].notna(),
+        [
+            "signal_execution_date",
+            "signal_date",
+            "relationship_id",
+            "signal_direction",
+            "price_layer_direction",
+            "is_divergence_opportunity",
+        ],
+    ].copy()
+
+    duplicate_actions = signal_actions.duplicated(
+        [
+            "signal_execution_date",
+            "relationship_id",
+        ],
+        keep=False,
+    )
+
+    if duplicate_actions.any():
+        bad_rows = signal_actions.loc[
+            duplicate_actions,
+            [
+                "signal_execution_date",
+                "relationship_id",
+                "signal_date",
+            ],
+        ]
+
+        raise ValueError(
+            "Duplicate exit actions for one execution date:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    signal_action_lookup = (
+        signal_actions
+        .set_index(
+            [
+                "signal_execution_date",
+                "relationship_id",
+            ]
+        )[
+            [
+                "signal_date",
+                "signal_direction",
+                "price_layer_direction",
+                "is_divergence_opportunity",
+            ]
+        ]
+        .to_dict("index")
+    )
 
     price_lookup = (
         fx_prices.set_index(["date", "fx_symbol"])[["fx_open", "fx_close"]]
@@ -348,41 +605,93 @@ def run_event_backtest(
             if price_row is not None:
                 position["last_mark_price"] = float(price_row["fx_open"])
 
-        # Fixed-horizon exits occur at today's open before new entries.
+        # Exit instructions are executed at today's open before new entries.
         remaining_positions: list[dict[str, Any]] = []
+
         trades_exited_today = 0
         gross_pnl_exited_today = 0.0
         exit_costs_today = 0.0
 
         for position in open_positions:
-            if position["scheduled_exit_date"] != current_date:
+            exit_reason, exit_signal_date = (
+                determine_exit_instruction(
+                    position,
+                    current_date,
+                    signal_action_lookup,
+                )
+            )
+
+            if exit_reason is None:
                 remaining_positions.append(position)
                 continue
 
-            exit_price = float(position["last_mark_price"])
-            gross_pnl = mark_position(position, exit_price)
-            exit_cost = position["notional_usd"] * one_way_cost_bps / 10_000
-            net_pnl = gross_pnl - position["entry_cost_usd"] - exit_cost
+            price_row = price_lookup.get(
+                (
+                    current_date,
+                    position["fx_symbol"],
+                )
+            )
+
+            if price_row is None:
+                # Keep the position open rather than executing at a stale price.
+                remaining_positions.append(position)
+                continue
+
+            exit_price = float(price_row["fx_open"])
+
+            gross_pnl = mark_position(
+                position,
+                exit_price,
+            )
+
+            exit_cost = (
+                position["notional_usd"]
+                * one_way_cost_bps
+                / 10_000
+            )
+
+            net_pnl = (
+                gross_pnl
+                - position["entry_cost_usd"]
+                - exit_cost
+            )
 
             cash_equity += gross_pnl - exit_cost
 
             closed_trade = dict(position)
+
             closed_trade.update(
                 {
                     "exit_date": current_date,
                     "exit_price": exit_price,
+                    "exit_reason": exit_reason,
+                    "exit_signal_date": exit_signal_date,
                     "gross_pnl_usd": gross_pnl,
                     "exit_cost_usd": exit_cost,
-                    "transaction_cost_usd": position["entry_cost_usd"] + exit_cost,
+                    "transaction_cost_usd": (
+                        position["entry_cost_usd"]
+                        + exit_cost
+                    ),
                     "net_pnl_usd": net_pnl,
-                    "realized_fx_return": exit_price / position["entry_price"] - 1.0,
-                    "trade_return_on_notional": net_pnl / position["notional_usd"],
-                    "winning_trade": int(net_pnl > 0),
+                    "realized_fx_return": (
+                        exit_price
+                        / position["entry_price"]
+                        - 1.0
+                    ),
+                    "trade_return_on_notional": (
+                        net_pnl
+                        / position["notional_usd"]
+                    ),
+                    "winning_trade": int(
+                        net_pnl > 0
+                    ),
                     "actual_holding_calendar_days": (
-                        current_date - position["entry_date"]
+                        current_date
+                        - position["entry_date"]
                     ).days,
                 }
             )
+
             closed_trades.append(closed_trade)
 
             trades_exited_today += 1
@@ -520,6 +829,8 @@ def run_event_backtest(
                             "primary_trade_rule": candidate["primary_trade_rule"],
                             "trade_direction": int(candidate["trade_direction"]),
                             "holding_period_days": int(candidate["default_holding_period_days"]),
+                            "exit_on_signal_flip": int(candidate["exit_on_signal_flip"] == 1),
+                            "exit_on_divergence_close": int(candidate["exit_on_divergence_close"] == 1),
                             "notional_usd": allowed_size,
                             "position_size_pct_at_entry": allowed_size / current_equity,
                             "entry_price": entry_price,
@@ -723,6 +1034,7 @@ def build_group_reports(trades: pd.DataFrame) -> dict[str, pd.DataFrame]:
         "by_currency": "currency",
         "by_fx_symbol": "fx_symbol",
         "by_primary_trade_rule": "primary_trade_rule",
+        "by_exit_reason": "exit_reason",
     }
 
     for report_name, group_col in group_specs.items():
@@ -794,6 +1106,13 @@ def main() -> None:
     if not decisions.empty:
         print("\nEntry decision summary:")
         print(decisions["entry_rejection_reason"].value_counts(dropna=False))
+        
+    if not trades.empty:
+        print("\nExit reason summary:")
+        print(
+            trades["exit_reason"]
+            .value_counts(dropna=False)
+        )
 
     if "by_commodity" in reports:
         print("\nTop commodities by PnL:")
