@@ -57,6 +57,60 @@ def validate_input_columns(df: pd.DataFrame) -> None:
         )
 
 
+def validate_input_rows(df: pd.DataFrame) -> None:
+    duplicate_mask = df.duplicated(
+        subset=["relationship_id", "date"],
+        keep=False,
+    )
+
+    if duplicate_mask.any():
+        bad_rows = df.loc[
+            duplicate_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Duplicate relationship/date rows found:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    weekend_mask = df["date"].dt.dayofweek >= 5
+
+    if weekend_mask.any():
+        bad_rows = df.loc[
+            weekend_mask,
+            ["relationship_id", "date"],
+        ]
+
+        raise ValueError(
+            "Weekend rows found in daily_divergence.csv:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    for column in [
+        "signal_direction",
+        "price_layer_direction",
+    ]:
+        invalid_mask = ~df[column].fillna(0).isin(
+            [-1, 0, 1]
+        )
+
+        if invalid_mask.any():
+            bad_rows = df.loc[
+                invalid_mask,
+                [
+                    "relationship_id",
+                    "date",
+                    column,
+                ],
+            ]
+
+            raise ValueError(
+                f"Invalid values in {column}:\n"
+                f"{bad_rows.head(20).to_string(index=False)}"
+            )
+
+
 def add_entry_rules(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
 
@@ -160,44 +214,94 @@ def assign_primary_trade_rule(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_trade_strength(df: pd.DataFrame) -> pd.DataFrame:
+def add_trade_strength(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     df = df.copy()
 
-    # Only actual trade candidates should carry a confirmation component.
+    confirmation_score = (
+        pd.to_numeric(
+            df["confirmation_score"],
+            errors="coerce",
+        )
+        .fillna(0.0)
+        .clip(0.0, 1.0)
+    )
+
+    divergence_score = (
+        pd.to_numeric(
+            df["divergence_score"],
+            errors="coerce",
+        )
+        .fillna(0.0)
+        .clip(0.0, 1.0)
+    )
+
+    baseline_score = (
+        pd.to_numeric(
+            df["baseline_signal_score"],
+            errors="coerce",
+        )
+        .fillna(0.0)
+        .clip(0.0, 1.0)
+    )
+
+    confirmed_rule = (
+        df["primary_trade_rule"]
+        == "confirmed"
+    )
+
+    divergence_rule = (
+        df["primary_trade_rule"]
+        == "confirmed_divergence"
+    )
+
+    # Baseline trades must not carry sentiment/fundamental confirmation.
     df["confirmation_component"] = np.where(
-        df["trade_candidate"] == 1,
-        df["confirmation_score"].clip(0.0, 1.0),
+        confirmed_rule | divergence_rule,
+        confirmation_score,
+        0.0,
+    )
+
+    # Only the divergence strategy uses divergence strength.
+    df["divergence_component"] = np.where(
+        divergence_rule,
+        divergence_score,
         0.0,
     )
 
     divergence_combined_score = (
-        0.60 * df["confirmation_score"]
-        + 0.40 * df["divergence_score"]
+        0.60 * confirmation_score
+        + 0.40 * divergence_score
     )
 
-    # Keep each strategy's score tied to the information that defines it.
-    # No-trade rows receive a score of zero.
+    # Each strategy is scored only with the information defining it.
     df["combined_trade_score"] = np.select(
         [
-            df["primary_trade_rule"] == "confirmed_divergence",
-            df["primary_trade_rule"] == "confirmed",
-            df["primary_trade_rule"] == "baseline",
+            divergence_rule,
+            confirmed_rule,
+            df["primary_trade_rule"].eq("baseline"),
         ],
         [
             divergence_combined_score,
-            df["confirmation_score"],
-            df["baseline_signal_score"],
+            confirmation_score,
+            baseline_score,
         ],
         default=0.0,
     )
 
     df["combined_trade_score"] = (
-        pd.Series(df["combined_trade_score"], index=df.index)
+        pd.Series(
+            df["combined_trade_score"],
+            index=df.index,
+        )
+        .fillna(0.0)
         .clip(0.0, 1.0)
     )
 
     df["signed_trade_score"] = (
-        df["trade_direction"] * df["combined_trade_score"]
+        df["trade_direction"]
+        * df["combined_trade_score"]
     )
 
     return df
@@ -229,6 +333,10 @@ def build_trade_rules(df: pd.DataFrame) -> pd.DataFrame:
 
     df["date"] = pd.to_datetime(df["date"])
 
+    validate_input_rows(df)
+
+    df = add_entry_rules(df)
+
     df = add_entry_rules(df)
     df = assign_primary_trade_rule(df)
     df = add_trade_strength(df)
@@ -246,6 +354,8 @@ def build_trade_rules(df: pd.DataFrame) -> pd.DataFrame:
         "baseline_signal_score",
         "combined_trade_score",
         "signed_trade_score",
+        "confirmation_component",
+        "divergence_component",
         "default_holding_period_days",
         "baseline_entry",
         "confirmed_entry",
