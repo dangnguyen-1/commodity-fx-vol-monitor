@@ -60,42 +60,197 @@ def add_aligned_returns(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def add_sentiment_features(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Use the provider-independent relationship-level sentiment signal.
+
+    The daily panel creates this signal for both:
+    - historical GDELT proxy mode
+    - live LLM sentiment mode
+
+    Positive values already indicate support for the mapped FX direction.
+    """
     df = df.copy()
 
-    df["commodity_sentiment_aligned"] = (
-        df["expected_sign"] * df["commodity_sentiment_score"]
+    required_columns = [
+        "relationship_sentiment_score",
+        "relationship_news_count",
+        "relationship_sentiment_confidence",
+        "relationship_sentiment_available",
+    ]
+
+    missing_columns = [
+        column
+        for column in required_columns
+        if column not in df.columns
+    ]
+
+    if missing_columns:
+        raise ValueError(
+            "Missing relationship sentiment columns: "
+            + ", ".join(missing_columns)
+        )
+
+    sentiment_available = (
+        pd.to_numeric(
+            df["relationship_sentiment_available"],
+            errors="coerce",
+        )
+        .fillna(0)
+        .eq(1)
     )
 
-    # Most FX symbols are expressed as currency/USD.
-    # Positive currency sentiment should usually mean the FX symbol rises.
-    df["currency_sentiment_fx_sign"] = 1
-
-    # Special case:
-    # USD inverse mappings are represented using EURUSD.
-    # Positive USD sentiment should imply EURUSD falls.
-    usd_inverse_mask = (
-        (df["currency"] == "USD")
-        & (df["fx_symbol"] == "FX:EURUSD")
+    sentiment_score = pd.to_numeric(
+        df["relationship_sentiment_score"],
+        errors="coerce",
     )
 
-    df.loc[usd_inverse_mask, "currency_sentiment_fx_sign"] = -1
-
-    df["currency_sentiment_aligned"] = (
-        df["currency_sentiment_fx_sign"] * df["currency_sentiment_score"]
+    news_count = (
+        pd.to_numeric(
+            df["relationship_news_count"],
+            errors="coerce",
+        )
+        .fillna(0)
+        .clip(lower=0)
     )
 
-    df["net_sentiment_aligned"] = (
-        df["commodity_sentiment_aligned"]
-        + df["currency_sentiment_aligned"]
+    sentiment_confidence = (
+        pd.to_numeric(
+            df["relationship_sentiment_confidence"],
+            errors="coerce",
+        )
+        .clip(lower=0, upper=1)
     )
 
-    df["has_commodity_news"] = (df["commodity_news_count"] > 0).astype(int)
-    df["has_currency_news"] = (df["currency_news_count"] > 0).astype(int)
+    invalid_scores = (
+        sentiment_score.notna()
+        & ~sentiment_score.between(-1, 1)
+    )
+
+    if invalid_scores.any():
+        bad_rows = df.loc[
+            invalid_scores,
+            [
+                "relationship_id",
+                "date",
+                "relationship_sentiment_score",
+            ],
+        ]
+
+        raise ValueError(
+            "Relationship sentiment scores outside [-1, 1]:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    df["sentiment_signal"] = sentiment_score.where(
+        sentiment_available
+    )
+
+    # Keep this older name temporarily so existing signal code
+    # does not break before we update build_signals.py.
+    df["net_sentiment_aligned"] = df["sentiment_signal"]
 
     df["has_any_news"] = (
-        (df["commodity_news_count"] > 0)
-        | (df["currency_news_count"] > 0)
+        sentiment_available
+        & news_count.gt(0)
     ).astype(int)
+
+    df["relationship_news_count"] = news_count
+    df["relationship_sentiment_confidence"] = (
+        sentiment_confidence
+    )
+
+    return df
+
+
+def add_fundamental_features(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Add usable relationship-level fundamental signals.
+
+    fundamental_layer_score is already aligned so that positive values
+    support the mapped FX direction. Do not multiply it by expected_sign.
+    """
+    df = df.copy()
+
+    required_columns = [
+        "fundamental_layer_score",
+        "fundamental_available",
+        "has_fundamental_mapping",
+    ]
+
+    missing_columns = [
+        column
+        for column in required_columns
+        if column not in df.columns
+    ]
+
+    if missing_columns:
+        raise ValueError(
+            "Missing fundamental columns: "
+            + ", ".join(missing_columns)
+        )
+
+    has_mapping = (
+        pd.to_numeric(
+            df["has_fundamental_mapping"],
+            errors="coerce",
+        )
+        .fillna(0)
+        .eq(1)
+    )
+
+    fundamental_available = (
+        pd.to_numeric(
+            df["fundamental_available"],
+            errors="coerce",
+        )
+        .fillna(0)
+        .eq(1)
+    )
+
+    fundamental_score = pd.to_numeric(
+        df["fundamental_layer_score"],
+        errors="coerce",
+    )
+
+    invalid_scores = (
+        fundamental_score.notna()
+        & ~fundamental_score.between(-1, 1)
+    )
+
+    if invalid_scores.any():
+        bad_rows = df.loc[
+            invalid_scores,
+            [
+                "relationship_id",
+                "date",
+                "fundamental_layer_score",
+            ],
+        ]
+
+        raise ValueError(
+            "Fundamental layer scores outside [-1, 1]:\n"
+            f"{bad_rows.head(20).to_string(index=False)}"
+        )
+
+    active = (
+        has_mapping
+        & fundamental_available
+        & fundamental_score.notna()
+    )
+
+    df["fundamental_signal"] = (
+        fundamental_score.where(active)
+    )
+
+    df["has_active_fundamental"] = (
+        active.astype(int)
+    )
+
+    df["fundamental_strength"] = (
+        df["fundamental_signal"].abs()
+    )
 
     return df
 
@@ -157,7 +312,7 @@ def add_momentum_features(df: pd.DataFrame) -> pd.DataFrame:
         )
 
         group["sentiment_z_20d"] = rolling_zscore(
-            group["net_sentiment_aligned"]
+            group["sentiment_signal"]
         )
 
         parts.append(group)
@@ -165,19 +320,89 @@ def add_momentum_features(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(parts, ignore_index=True) if parts else df
 
 
-def add_simple_direction_features(df: pd.DataFrame) -> pd.DataFrame:
+def add_simple_direction_features(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     df = df.copy()
 
-    df["commodity_direction_1d"] = np.sign(df["commodity_return_1d_aligned"])
-    df["commodity_direction_3d"] = np.sign(df["commodity_return_3d_aligned"])
-    df["commodity_direction_5d"] = np.sign(df["commodity_return_5d_aligned"])
+    df["commodity_direction_1d"] = np.sign(
+        df["commodity_return_1d_aligned"]
+    )
 
-    df["sentiment_direction"] = np.sign(df["net_sentiment_aligned"])
-    df["fx_direction_1d"] = np.sign(df["fx_return_1d"])
+    df["commodity_direction_3d"] = np.sign(
+        df["commodity_return_3d_aligned"]
+    )
+
+    df["commodity_direction_5d"] = np.sign(
+        df["commodity_return_5d_aligned"]
+    )
+
+    df["sentiment_direction"] = np.sign(
+        df["sentiment_signal"]
+    )
+
+    df["fundamental_direction"] = np.sign(
+        df["fundamental_signal"]
+    )
+
+    df["fx_direction_1d"] = np.sign(
+        df["fx_return_1d"]
+    )
+
+    price_active = (
+        df["commodity_direction_1d"].notna()
+        & df["commodity_direction_1d"].ne(0)
+    )
+
+    sentiment_active = (
+        df["sentiment_direction"].notna()
+        & df["sentiment_direction"].ne(0)
+    )
+
+    fundamental_active = (
+        df["fundamental_direction"].notna()
+        & df["fundamental_direction"].ne(0)
+    )
 
     df["price_sentiment_agree"] = (
-        (df["commodity_direction_1d"] == df["sentiment_direction"])
-        & (df["sentiment_direction"] != 0)
+        price_active
+        & sentiment_active
+        & (
+            df["commodity_direction_1d"]
+            == df["sentiment_direction"]
+        )
+    ).astype(int)
+
+    df["price_fundamental_agree"] = (
+        price_active
+        & fundamental_active
+        & (
+            df["commodity_direction_1d"]
+            == df["fundamental_direction"]
+        )
+    ).astype(int)
+
+    df["sentiment_fundamental_agree"] = (
+        sentiment_active
+        & fundamental_active
+        & (
+            df["sentiment_direction"]
+            == df["fundamental_direction"]
+        )
+    ).astype(int)
+
+    df["three_layer_agree"] = (
+        price_active
+        & sentiment_active
+        & fundamental_active
+        & (
+            df["commodity_direction_1d"]
+            == df["sentiment_direction"]
+        )
+        & (
+            df["commodity_direction_1d"]
+            == df["fundamental_direction"]
+        )
     ).astype(int)
 
     return df
@@ -239,22 +464,36 @@ def add_volatility_features(df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(parts, ignore_index=True) if parts else df
 
 
-def add_news_intensity_features(df: pd.DataFrame) -> pd.DataFrame:
+def add_news_intensity_features(
+    df: pd.DataFrame,
+) -> pd.DataFrame:
     df = df.copy()
 
     df["total_news_count"] = (
-        df["commodity_news_count"] + df["currency_news_count"]
+        pd.to_numeric(
+            df["relationship_news_count"],
+            errors="coerce",
+        )
+        .fillna(0)
+        .clip(lower=0)
     )
 
-    df["log_total_news_count"] = np.log1p(df["total_news_count"])
+    df["log_total_news_count"] = np.log1p(
+        df["total_news_count"]
+    )
 
+    # Preserve this older output name temporarily for compatibility.
     df["avg_total_sentiment_confidence"] = (
-        df["commodity_sentiment_confidence"]
-        + df["currency_sentiment_confidence"]
-    ) / 2
+        pd.to_numeric(
+            df["relationship_sentiment_confidence"],
+            errors="coerce",
+        )
+        .clip(lower=0, upper=1)
+    )
 
     df["sentiment_confidence_weighted"] = (
-        df["net_sentiment_aligned"] * df["avg_total_sentiment_confidence"]
+        df["sentiment_signal"]
+        * df["avg_total_sentiment_confidence"]
     )
 
     return df
@@ -288,6 +527,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     df = add_aligned_returns(df)
     df = add_sentiment_features(df)
+    df = add_fundamental_features(df)
     df = add_rolling_beta_and_divergence(df)
     df = add_momentum_features(df)
     df = add_simple_direction_features(df)
@@ -335,9 +575,11 @@ def main() -> None:
             "commodity_return_1d_aligned",
             "commodity_return_3d_aligned",
             "commodity_return_5d_aligned",
-            "commodity_sentiment_aligned",
-            "currency_sentiment_aligned",
+            "sentiment_signal",
             "net_sentiment_aligned",
+            "fundamental_signal",
+            "fundamental_strength",
+            "has_active_fundamental",
             "rolling_beta_20d",
             "expected_fx_return_1d",
             "fx_divergence_1d",
@@ -348,6 +590,10 @@ def main() -> None:
             "commodity_direction_1d",
             "sentiment_direction",
             "price_sentiment_agree",
+            "price_fundamental_agree",
+            "sentiment_fundamental_agree",
+            "three_layer_agree",
+            "fundamental_direction",
             "fx_forward_return_1d",
             "fx_forward_return_3d",
             "fx_forward_return_5d",
