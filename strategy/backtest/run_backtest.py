@@ -484,7 +484,20 @@ def run_event_backtest(
     initial_capital: float = INITIAL_CAPITAL,
     round_trip_cost_bps: float = ROUND_TRIP_COST_BPS,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    candidates = attach_execution_schedule(candidates, fx_prices)
+    candidates = candidates.copy()
+
+    if "risk_rule_priority" not in candidates.columns:
+        candidates["risk_rule_priority"] = (
+            candidates["primary_trade_rule"]
+            .map(RULE_PRIORITY)
+            .fillna(0)
+            .astype(int)
+        )
+
+    candidates = attach_execution_schedule(
+        candidates,
+        fx_prices,
+    )
     
     signal_actions = candidates.loc[
         candidates["signal_execution_date"].notna(),

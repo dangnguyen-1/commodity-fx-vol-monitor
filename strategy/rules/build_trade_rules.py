@@ -111,7 +111,12 @@ def validate_input_rows(df: pd.DataFrame) -> None:
             )
 
 
-def add_entry_rules(df: pd.DataFrame) -> pd.DataFrame:
+def add_entry_rules(
+    df: pd.DataFrame,
+    *,
+    enable_confirmed: bool = True,
+    enable_divergence: bool = True,
+) -> pd.DataFrame:
     df = df.copy()
 
     # Strategy A: pure price-only benchmark.
@@ -134,11 +139,17 @@ def add_entry_rules(df: pd.DataFrame) -> pd.DataFrame:
 
     # Strategy B: confirmed setup.
     # Requires multi-layer agreement from the confirmation score model.
-    df["confirmed_entry"] = (
-        (df["signal_direction"] != 0)
-        & (df["is_confirmed_setup"] == 1)
-        & (df["confirmation_score"] >= CONFIRMED_MIN_CONFIRMATION)
-    ).astype(int)
+    if enable_confirmed:
+        df["confirmed_entry"] = (
+            (df["signal_direction"] != 0)
+            & (df["is_confirmed_setup"] == 1)
+            & (
+                df["confirmation_score"]
+                >= CONFIRMED_MIN_CONFIRMATION
+            )
+        ).astype(int)
+    else:
+        df["confirmed_entry"] = 0
 
     df["confirmed_direction"] = np.where(
         df["confirmed_entry"] == 1,
@@ -148,19 +159,42 @@ def add_entry_rules(df: pd.DataFrame) -> pd.DataFrame:
 
     # Strategy C: confirmed divergence setup.
     # Requires confirmation plus FX underreaction.
-    df["confirmed_divergence_entry"] = (
-        (df["signal_direction"] != 0)
-        & (df["is_confirmed_divergence_setup"] == 1)
-        & (df["is_divergence_opportunity"] == 1)
-        & (df["confirmation_score"] >= DIVERGENCE_MIN_CONFIRMATION)
-        & (df["divergence_score"] >= DIVERGENCE_MIN_SCORE)
-    ).astype(int)
+    if enable_divergence:
+        df["confirmed_divergence_entry"] = (
+            (df["signal_direction"] != 0)
+            & (
+                df["is_confirmed_divergence_setup"]
+                == 1
+            )
+            & (
+                df["is_divergence_opportunity"]
+                == 1
+            )
+            & (
+                df["confirmation_score"]
+                >= DIVERGENCE_MIN_CONFIRMATION
+            )
+            & (
+                df["divergence_score"]
+                >= DIVERGENCE_MIN_SCORE
+            )
+        ).astype(int)
+    else:
+        df["confirmed_divergence_entry"] = 0
 
     df["confirmed_divergence_direction"] = np.where(
         df["confirmed_divergence_entry"] == 1,
         df["signal_direction"],
         0,
     ).astype(int)
+    
+    df["confirmed_rule_enabled"] = int(
+    enable_confirmed
+)
+
+    df["divergence_rule_enabled"] = int(
+        enable_divergence
+    )
 
     return df
 
@@ -324,7 +358,12 @@ def add_rule_metadata(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def build_trade_rules(df: pd.DataFrame) -> pd.DataFrame:
+def build_trade_rules(
+    df: pd.DataFrame,
+    *,
+    enable_confirmed: bool = True,
+    enable_divergence: bool = True,
+) -> pd.DataFrame:
     if df.empty:
         return df
 
@@ -335,9 +374,12 @@ def build_trade_rules(df: pd.DataFrame) -> pd.DataFrame:
 
     validate_input_rows(df)
 
-    df = add_entry_rules(df)
+    df = add_entry_rules(
+        df,
+        enable_confirmed=enable_confirmed,
+        enable_divergence=enable_divergence,
+    )
 
-    df = add_entry_rules(df)
     df = assign_primary_trade_rule(df)
     df = add_trade_strength(df)
     df = add_rule_metadata(df)
@@ -348,6 +390,8 @@ def build_trade_rules(df: pd.DataFrame) -> pd.DataFrame:
         "commodity",
         "currency",
         "fx_symbol",
+        "confirmed_rule_enabled",
+        "divergence_rule_enabled",
         "primary_trade_rule",
         "trade_candidate",
         "trade_direction",

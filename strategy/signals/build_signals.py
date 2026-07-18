@@ -165,6 +165,9 @@ def confirmation_bucket(score: float) -> str:
 
 def add_confirmation_score(
     df: pd.DataFrame,
+    *,
+    use_sentiment: bool = True,
+    use_fundamentals: bool = True,
 ) -> pd.DataFrame:
     df = df.copy()
 
@@ -173,15 +176,21 @@ def add_confirmation_score(
         axis=1,
     )
 
-    df["sentiment_layer_score"] = df.apply(
-        sentiment_layer,
-        axis=1,
-    )
+    if use_sentiment:
+        df["sentiment_layer_score"] = df.apply(
+            sentiment_layer,
+            axis=1,
+        )
+    else:
+        df["sentiment_layer_score"] = 0.0
 
-    df["fundamental_layer_score"] = df.apply(
-        fundamental_layer,
-        axis=1,
-    )
+    if use_fundamentals:
+        df["fundamental_layer_score"] = df.apply(
+            fundamental_layer,
+            axis=1,
+        )
+    else:
+        df["fundamental_layer_score"] = 0.0
 
     df["price_layer_direction"] = (
         df["price_layer_score"].apply(
@@ -314,6 +323,10 @@ def add_confirmation_score(
         df["signal_direction"]
         * df["confirmation_score"]
     )
+    
+    df["uses_market_layer"] = 1
+    df["uses_sentiment_layer"] = int(use_sentiment)
+    df["uses_fundamental_layer"] = int(use_fundamentals)
 
     return df
 
@@ -328,7 +341,12 @@ def validate_input_columns(df: pd.DataFrame) -> None:
         )
 
 
-def build_signals(df: pd.DataFrame) -> pd.DataFrame:
+def build_signals(
+    df: pd.DataFrame,
+    *,
+    use_sentiment: bool = True,
+    use_fundamentals: bool = True,
+) -> pd.DataFrame:
     if df.empty:
         return df
 
@@ -353,7 +371,11 @@ def build_signals(df: pd.DataFrame) -> pd.DataFrame:
             f"{duplicate_rows.head(20).to_string(index=False)}"
         )
 
-    df = add_confirmation_score(df)
+    df = add_confirmation_score(
+        df,
+        use_sentiment=use_sentiment,
+        use_fundamentals=use_fundamentals,
+    )
 
     front_cols = [
         "date",
@@ -362,6 +384,9 @@ def build_signals(df: pd.DataFrame) -> pd.DataFrame:
         "currency",
         "fx_symbol",
         "priority",
+        "uses_market_layer",
+        "uses_sentiment_layer",
+        "uses_fundamental_layer",
         "signal_direction",
         "confirmation_score",
         "signed_confirmation_score",
