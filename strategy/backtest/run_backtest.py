@@ -209,6 +209,8 @@ def load_fx_prices() -> pd.DataFrame:
 def attach_execution_schedule(
     candidates: pd.DataFrame,
     fx_prices: pd.DataFrame,
+    *,
+    additional_entry_delay_days: int = 0,
 ) -> pd.DataFrame:
     """
     All signals are formed after the close on signal_date.
@@ -219,6 +221,16 @@ def attach_execution_schedule(
 
     Fixed-horizon exits remain scheduled N FX trading observations after entry.
     """
+    if additional_entry_delay_days < 0:
+        raise ValueError(
+            "additional_entry_delay_days "
+            "must be nonnegative."
+        )
+
+    additional_entry_delay_days = int(
+        additional_entry_delay_days
+    )
+    
     candidates = candidates.copy()
 
     candidates["signal_date"] = candidates["date"]
@@ -271,7 +283,9 @@ def attach_execution_schedule(
             "ns",
         )
 
-        execution_position = int(
+        # Signals formed after today's close become actionable
+        # at the next available FX open.
+        signal_execution_position = int(
             np.searchsorted(
                 dates,
                 signal_date,
@@ -279,37 +293,63 @@ def attach_execution_schedule(
             )
         )
 
-        if execution_position >= len(price_group):
+        if signal_execution_position >= len(
+            price_group
+        ):
             if candidate_mask.at[idx]:
                 candidates.at[
                     idx,
                     "schedule_status",
                 ] = "missing_next_open"
+
             continue
 
-        execution_row = price_group.iloc[
-            execution_position
+        signal_execution_row = price_group.iloc[
+            signal_execution_position
         ]
 
         candidates.at[
             idx,
             "signal_execution_date",
-        ] = execution_row["date"]
+        ] = signal_execution_row["date"]
 
         candidates.at[
             idx,
             "signal_execution_price",
-        ] = float(execution_row["fx_open"])
+        ] = float(
+            signal_execution_row["fx_open"]
+        )
 
         if not candidate_mask.at[idx]:
             continue
+
+        # A delay of zero preserves the original behavior:
+        # entry occurs at the next available FX open.
+        entry_position = (
+            signal_execution_position
+            + additional_entry_delay_days
+        )
+
+        if entry_position >= len(price_group):
+            candidates.at[
+                idx,
+                "schedule_status",
+            ] = "missing_delayed_entry_open"
+
+            continue
+
+        entry_row = price_group.iloc[
+            entry_position
+        ]
 
         hold_days = int(
             row["default_holding_period_days"]
         )
 
+        # Preserve the intended holding period after the
+        # delayed entry rather than keeping the old exit date.
         exit_position = (
-            execution_position + hold_days
+            entry_position + hold_days
         )
 
         if exit_position >= len(price_group):
@@ -326,7 +366,7 @@ def attach_execution_schedule(
         candidates.at[
             idx,
             "entry_date",
-        ] = execution_row["date"]
+        ] = entry_row["date"]
 
         candidates.at[
             idx,
@@ -336,7 +376,7 @@ def attach_execution_schedule(
         candidates.at[
             idx,
             "scheduled_entry_price",
-        ] = float(execution_row["fx_open"])
+        ] = float(entry_row["fx_open"])
 
         candidates.at[
             idx,
@@ -483,6 +523,7 @@ def run_event_backtest(
     *,
     initial_capital: float = INITIAL_CAPITAL,
     round_trip_cost_bps: float = ROUND_TRIP_COST_BPS,
+    additional_entry_delay_days: int = 0,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     candidates = candidates.copy()
 
@@ -497,6 +538,9 @@ def run_event_backtest(
     candidates = attach_execution_schedule(
         candidates,
         fx_prices,
+        additional_entry_delay_days=(
+            additional_entry_delay_days
+        ),
     )
     
     signal_actions = candidates.loc[
@@ -508,6 +552,10 @@ def run_event_backtest(
             "signal_direction",
             "price_layer_direction",
             "is_divergence_opportunity",
+            "trade_candidate",
+            "has_position",
+            "trade_direction",
+            "primary_trade_rule",
         ],
     ].copy()
 
@@ -547,6 +595,10 @@ def run_event_backtest(
                 "signal_direction",
                 "price_layer_direction",
                 "is_divergence_opportunity",
+                "trade_candidate",
+                "has_position",
+                "trade_direction",
+                "primary_trade_rule",
             ]
         ]
         .to_dict("index")
@@ -766,6 +818,119 @@ def run_event_backtest(
                     "entry_rejection_reason": "unknown",
                     "entry_was_scaled": 0,
                 }
+
+                # Delayed orders are entered only if the most
+                # recently actionable signal remains active at
+                # the actual entry open.
+                if additional_entry_delay_days > 0:
+                    current_action = (
+                        signal_action_lookup.get(
+                            (
+                                current_date,
+                                candidate[
+                                    "relationship_id"
+                                ],
+                            )
+                        )
+                    )
+
+                    if current_action is None:
+                        decision[
+                            "entry_rejection_reason"
+                        ] = (
+                            "missing_entry_"
+                            "revalidation_signal"
+                        )
+
+                        entry_decisions.append(
+                            decision
+                        )
+
+                        rejected_today += 1
+                        continue
+
+                    current_trade_candidate = (
+                        current_action.get(
+                            "trade_candidate"
+                        )
+                    )
+
+                    current_has_position = (
+                        current_action.get(
+                            "has_position"
+                        )
+                    )
+
+                    current_trade_direction = (
+                        current_action.get(
+                            "trade_direction"
+                        )
+                    )
+
+                    signal_remains_active = (
+                        pd.notna(
+                            current_trade_candidate
+                        )
+                        and int(
+                            current_trade_candidate
+                        ) == 1
+                        and pd.notna(
+                            current_has_position
+                        )
+                        and int(
+                            current_has_position
+                        ) == 1
+                        and pd.notna(
+                            current_trade_direction
+                        )
+                        and int(
+                            current_trade_direction
+                        )
+                        == int(
+                            candidate[
+                                "trade_direction"
+                            ]
+                        )
+                    )
+
+                    # A divergence-based order must still
+                    # have an active divergence at entry.
+                    if (
+                        candidate[
+                            "primary_trade_rule"
+                        ]
+                        == "confirmed_divergence"
+                    ):
+                        current_divergence = (
+                            current_action.get(
+                                "is_divergence_opportunity"
+                            )
+                        )
+
+                        signal_remains_active = (
+                            signal_remains_active
+                            and pd.notna(
+                                current_divergence
+                            )
+                            and int(
+                                current_divergence
+                            ) == 1
+                        )
+
+                    if not signal_remains_active:
+                        decision[
+                            "entry_rejection_reason"
+                        ] = (
+                            "delayed_entry_"
+                            "signal_invalidated"
+                        )
+
+                        entry_decisions.append(
+                            decision
+                        )
+
+                        rejected_today += 1
+                        continue
 
                 if current_equity <= 0:
                     decision["entry_rejection_reason"] = "non_positive_equity"

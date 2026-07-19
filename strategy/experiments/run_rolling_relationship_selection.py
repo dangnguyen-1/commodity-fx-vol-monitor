@@ -68,7 +68,7 @@ ROUND_TRIP_COSTS_BPS = [
 # realistic round-trip transaction-cost assumption.
 SELECTION_COST_BPS = 2.0
 
-LOOKBACK_YEARS = 3
+LOOKBACK_YEARS = 2
 
 MIN_TRAILING_TRADES = 20
 

@@ -1,31 +1,99 @@
 {
   "configuration": {
     "backtest_assumptions": {
+      "cost_failure_scenario_bps": 5.0,
       "round_trip_cost_bps": 2.0
     },
     "divergence_enabled": true,
+    "execution": {
+      "additional_entry_delay_days": 0,
+      "delayed_signal_policy": "revalidate_and_cancel_if_stale",
+      "entry_timing": "next_available_fx_open",
+      "signal_frequency": "daily"
+    },
     "frozen_date": "2026-07-18",
+    "historical_evidence": {
+      "block_bootstrap": {
+        "probability_positive_return": 0.805,
+        "probability_positive_sharpe": 0.805,
+        "probability_profit_factor_above_one": 0.81,
+        "replications": 2000,
+        "research_holdout_return_ci_2_5_pct": -0.349266,
+        "research_holdout_return_ci_97_5_pct": 0.927024
+      },
+      "concentration_stress": {
+        "holdout_return_without_brl_pct": -0.124513,
+        "holdout_return_without_coffee_brl_pct": -0.060159,
+        "holdout_return_without_corn_brl_pct": -0.046004
+      },
+      "execution_stress": {
+        "one_day_delay_2bps_holdout_return_pct": -0.114868,
+        "zero_delay_5bps_holdout_return_pct": -0.033764
+      },
+      "final_timing_placebo": {
+        "minimum_shift_observations": 63,
+        "profit_factor_empirical_p_value": 0.023952,
+        "profit_factor_percentile": 97.8,
+        "replications": 500,
+        "return_empirical_p_value": 0.02994,
+        "return_percentile": 97.2,
+        "sharpe_empirical_p_value": 0.033932,
+        "sharpe_percentile": 96.8
+      },
+      "research_holdout": {
+        "max_drawdown_pct": -0.267026,
+        "period_end": "2026-07-13",
+        "period_start": "2023-01-02",
+        "profit_factor": 1.093159,
+        "sharpe_ratio": 0.460519,
+        "total_return_pct": 0.274088,
+        "total_trades": 1783
+      },
+      "validation": {
+        "max_drawdown_pct": -0.517116,
+        "period_end": "2022-12-30",
+        "period_start": "2019-01-01",
+        "profit_factor": 0.983286,
+        "sharpe_ratio": -0.081521,
+        "total_return_pct": -0.07631,
+        "total_trades": 1978
+      }
+    },
     "information_layers": {
       "fundamentals": true,
       "market": true,
       "news_sentiment": true
     },
+    "known_limitations": [
+      "Validation performance is negative after costs.",
+      "The historical edge disappears near 5 bps round-trip transaction costs.",
+      "The historical edge does not survive one additional trading day of entry delay.",
+      "Research-holdout performance is materially dependent on the BRL sleeve.",
+      "Coffee-BRL and Corn-BRL are material research-holdout return contributors.",
+      "The research holdout has been inspected repeatedly and is not an untouched test set.",
+      "Block-bootstrap confidence intervals for the full portfolio cross zero.",
+      "Historical results do not constitute approval for live capital."
+    ],
     "position_sizing": "signal_volatility",
     "relationship_selection": {
-      "lookback_years": 3,
+      "lookback_years": 2,
       "method": "rolling_soft_weight",
       "minimum_trailing_net_return_pct": 0.0,
       "minimum_trailing_profit_factor": 1.0,
       "minimum_trailing_trades": 20,
       "qualified_relationship_weight": 1.0,
+      "schedule_path": "strategy/config/v1/rolling_selection_schedule.csv",
       "selection_round_trip_cost_bps": 2.0,
       "update_frequency": "annual",
       "weak_relationship_weight": 0.5
     },
+    "release_status": "frozen_for_paper_trading",
     "research_status": {
       "benchmark_model": "market_fundamentals",
       "historical_tuning_complete": true,
+      "live_capital_approved": false,
       "next_stage": "paper_trading",
+      "post_freeze_strategy_changes_require_v2": true,
       "primary_model": "market_fundamentals_news",
       "research_holdout_is_no_longer_untouched": true
     },
@@ -55,18 +123,23 @@
     },
     {
       "path": "strategy/backtest/run_backtest.py",
-      "sha256": "8169611e3349870096d8a4a293e192745778fe74619bfc0a21afda262497da7d",
-      "size_bytes": 37671
+      "sha256": "f2fd4af7b60446234de8377e7e726c487dcb3cdd257588b6f40be2484bf9e3f8",
+      "size_bytes": 43099
     },
     {
       "path": "strategy/experiments/run_rolling_relationship_selection.py",
-      "sha256": "396dd8f117733c0607db601acf790b229fe3a8fef2f92427ef81d42663f9be79",
+      "sha256": "eb9f3129ff2ffb36c85c24065206f420410dda874e207a5fb343595815cb3af5",
       "size_bytes": 31224
     },
     {
       "path": "strategy/experiments/run_final_layer_ablation.py",
       "sha256": "4d42b0551c47ddeec78afd800a2d11b4a92cc1df38ff6aae7a076086e136fb6a",
       "size_bytes": 26589
+    },
+    {
+      "path": "strategy/config/v1/rolling_selection_schedule.csv",
+      "sha256": "2e00d37763ca05245b07c977226b3df0c682a8616e6e7af0fc55f6e11c5420e9",
+      "size_bytes": 60928
     }
   ]
 }
