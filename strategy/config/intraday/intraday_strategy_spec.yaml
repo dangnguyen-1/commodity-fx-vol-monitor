@@ -1,0 +1,306 @@
+strategy:
+  name: commodity_fx_intraday
+  specification_version: "0.1.0"
+  status: draft_for_local_replay
+  parent_research_version: "v1.0.0"
+  paper_trading_only: true
+  live_capital_approved: false
+
+capital:
+  initial_equity_usd: 100000.0
+  base_currency: USD
+
+data:
+  market:
+    input_bar_interval: 1m
+    signal_evaluation_interval: 5m
+    position_monitoring_interval: 1m
+
+    require_completed_bars: true
+    maximum_bar_lateness_seconds: 90
+    minimum_window_coverage_pct: 95.0
+
+    timestamp_standard: UTC
+
+  news:
+    sources:
+      - Reuters
+      - MarketWatch
+      - Investing.com
+
+    polling_interval_seconds: 60
+
+    required_fields:
+      - source
+      - url
+      - headline
+      - summary
+      - publication_timestamp
+      - retrieval_timestamp
+
+    deduplication:
+      method: normalized_url_and_headline_hash
+      lookback_hours: 24
+
+    sentiment_classification:
+      provider: openai
+      model_environment_variable: OPENAI_SENTIMENT_MODEL
+
+      input_fields:
+        - source
+        - headline
+        - summary
+        - publication_timestamp
+
+      output_fields:
+        - relevant
+        - commodities
+        - sentiment
+        - confidence
+        - event_type
+
+      sentiment_range:
+        minimum: -1.0
+        maximum: 1.0
+
+      minimum_relevance_confidence: 0.60
+
+relationships:
+  metadata_source: strategy/config/v1/rolling_selection_schedule.csv
+  selection_method: rolling_soft_weight
+  update_frequency: annual
+
+  qualified_relationship_weight: 1.0
+  weak_relationship_weight: 0.5
+
+features:
+  commodity_return_windows_minutes:
+    - 15
+    - 60
+    - 240
+
+  fx_return_window_minutes: 15
+  realized_volatility_window_minutes: 60
+
+  market_impulse_weights:
+    return_15m: 0.50
+    return_60m: 0.30
+    return_240m: 0.20
+
+  normalization:
+    method: return_divided_by_trailing_realized_volatility
+    minimum_volatility_floor: 0.000001
+
+  news:
+    full_weight_minutes: 30
+    decay_half_life_minutes: 60
+    expiry_minutes: 240
+
+    score_formula: sentiment_times_confidence_times_time_decay
+    aggregation: weighted_mean
+
+signals:
+  evaluation:
+    interval_minutes: 5
+    evaluate_on_minutes:
+      - 0
+      - 5
+      - 10
+      - 15
+      - 20
+      - 25
+      - 30
+      - 35
+      - 40
+      - 45
+      - 50
+      - 55
+
+  formulas:
+    commodity_impulse: >
+      0.50 * normalized_commodity_return_15m
+      + 0.30 * normalized_commodity_return_60m
+      + 0.20 * normalized_commodity_return_240m
+
+    expected_fx_impulse: >
+      relationship_direction
+      * (commodity_impulse + 0.75 * news_impulse)
+
+    observed_fx_impulse: normalized_fx_return_15m
+
+    divergence_score: >
+      expected_fx_impulse - observed_fx_impulse
+
+  entry_modes:
+    confirmed:
+      enabled: true
+      require_relevant_news: true
+      require_market_news_direction_agreement: true
+      minimum_absolute_expected_fx_impulse: 1.25
+      minimum_absolute_divergence_score: 0.75
+
+    divergence:
+      enabled: true
+      require_relevant_news: false
+      minimum_absolute_commodity_impulse: 1.50
+      minimum_absolute_divergence_score: 1.00
+
+  conflicting_news:
+    block_entry_when_opposing_news_score_exceeds: 0.25
+
+  signal_expiry_minutes: 10
+  one_open_position_per_relationship: true
+  pyramiding_enabled: false
+
+execution:
+  order_type: simulated_market
+  entry_timing: next_completed_one_minute_bar_open
+  additional_entry_delay_minutes: 0
+
+  stale_signal_policy:
+    revalidate_before_fill: true
+    cancel_after_minutes: 10
+
+  fill_model:
+    use_bid_ask_when_available: true
+    fallback_minimum_round_trip_cost_bps: 2.0
+    fallback_slippage_per_side_bps: 0.5
+
+  reject_entry_when_expected_round_trip_cost_bps_exceeds: 4.0
+
+  record:
+    - signal_timestamp
+    - signal_price
+    - expected_fill_price
+    - simulated_fill_price
+    - spread_cost_usd
+    - slippage_cost_usd
+    - total_transaction_cost_usd
+
+position_sizing:
+  method: signal_volatility
+
+  signal_strength_floor: 0.50
+  signal_strength_cap: 2.00
+
+  relationship_selection_weight_applied: true
+  volatility_scaling_enabled: true
+
+risk:
+  maximum_simultaneous_positions: 5
+  maximum_relationship_exposure_pct: 0.02
+  maximum_currency_exposure_pct: 0.04
+  maximum_gross_exposure_pct: 0.10
+
+  block_duplicate_orders: true
+
+  daily_loss_pause_pct: 0.50
+  total_drawdown_pause_pct: 2.00
+
+  data_controls:
+    reject_on_stale_market_data: true
+    reject_on_incomplete_feature_window: true
+    reject_on_missing_relationship_metadata: true
+    reject_on_strategy_engine_error: true
+
+exits:
+  signal_reversal:
+    enabled: true
+    minimum_opposite_signal_strength: 0.75
+
+  divergence_convergence:
+    enabled: true
+    close_when_absolute_divergence_below: 0.25
+
+  maximum_holding_time:
+    enabled: true
+    minutes: 240
+
+  volatility_stop:
+    enabled: true
+    volatility_units: 1.50
+
+  fixed_profit_target:
+    enabled: false
+
+  emergency_exit:
+    enabled: true
+    triggers:
+      - stale_market_data
+      - position_reconciliation_failure
+      - risk_limit_breach
+      - manual_kill_switch
+
+sessions:
+  calendar_source: relationship_specific_exchange_calendar
+  block_new_entries_before_market_close_minutes: 30
+  allow_overnight_positions: false
+
+paper_ledger:
+  persist_every_decision: true
+  persist_every_order: true
+  persist_every_fill: true
+  mark_positions_to_market_every_minute: true
+
+  required_trade_fields:
+    - relationship_id
+    - commodity
+    - currency
+    - direction
+    - signal_timestamp
+    - entry_timestamp
+    - entry_price
+    - exit_timestamp
+    - exit_price
+    - position_size_usd
+    - gross_pnl_usd
+    - transaction_cost_usd
+    - net_pnl_usd
+    - exit_reason
+
+monitoring:
+  heartbeat_interval_seconds: 60
+
+  alerts:
+    - collector_offline
+    - stale_market_data
+    - news_collector_offline
+    - sentiment_api_failure
+    - rejected_order
+    - duplicate_order_attempt
+    - risk_limit_breach
+    - position_reconciliation_failure
+    - strategy_engine_offline
+
+dashboard:
+  refresh_interval_seconds: 5
+
+  sections:
+    - system_status
+    - current_signals
+    - open_positions
+    - performance
+    - exposure
+    - news_feed
+    - trade_audit_log
+
+governance:
+  daily_review:
+    - collector_health
+    - data_completeness
+    - sentiment_failures
+    - orders_and_fills
+    - positions_and_exposure
+    - transaction_costs
+
+  weekly_review:
+    strategy_changes_allowed: false
+
+  formal_strategy_review:
+    minimum_calendar_weeks: 8
+    minimum_closed_trades: 200
+    requirement: both_thresholds_must_be_met
+
+  versioning:
+    bug_or_deployment_fix: patch_version
+    signal_or_risk_rule_change: major_candidate_version

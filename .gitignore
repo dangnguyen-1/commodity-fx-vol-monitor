@@ -7,3 +7,11 @@ data_collector/market_data/output/
 data_collector/news_data/input/
 data_collector/news_data/output/
 strategy/output/
+# Paper-trading runtime database
+paper_trading/data/*.db
+paper_trading/data/*.db-wal
+paper_trading/data/*.db-shm
+
+# Python cache
+__pycache__/
+*.py[cod]
