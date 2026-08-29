@@ -15,3 +15,7 @@ paper_trading/data/*.db-shm
 # Python cache
 __pycache__/
 *.py[cod]
+
+# Dashboard's own disk caches (World Bank indicators, free-Comtrade bilateral
+# fallback) — fetched on demand, not source
+dashboard/cache/

@@ -5,9 +5,12 @@ from datetime import datetime, timezone
 from typing import Annotated, Literal
 
 import yaml
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+load_dotenv()
 
 from paper_trading.api.database import (
     DatabaseUnavailable,
@@ -17,6 +20,11 @@ from paper_trading.api.database import (
     resolve_run_id,
     row_to_dict,
     rows_to_dicts,
+)
+from paper_trading.api.market_database import (
+    MarketDatabaseUnavailable,
+    read_connection as market_read_connection,
+    rows_to_dicts as market_rows_to_dicts,
 )
 
 
@@ -50,6 +58,20 @@ app.add_middleware(
 def database_unavailable_handler(
     _request,
     exc: DatabaseUnavailable,
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": str(exc),
+            "status": "unavailable",
+        },
+    )
+
+
+@app.exception_handler(MarketDatabaseUnavailable)
+def market_database_unavailable_handler(
+    _request,
+    exc: MarketDatabaseUnavailable,
 ) -> JSONResponse:
     return JSONResponse(
         status_code=503,
@@ -675,6 +697,139 @@ def equity(
             "count": len(items),
             "items": items,
             "latest": items[-1] if items else None,
+        }
+
+
+@app.get("/market-data", tags=["market"])
+def market_data(
+    symbols: str,
+    timeframe: str = "1D",
+    lookback_days: Annotated[int, Query(ge=1, le=6000)] = 400,
+) -> dict:
+    """Raw OHLCV bars from data_collector's TradingView feed — a
+    different database from the paper-trading SQLite one (that one holds
+    the strategy's derived state; this is the raw collected market data
+    it's built from). `symbols` is comma-separated (e.g.
+    "NYMEX:CL1!,DERIVED:CADUSD"); FX inverse pairs are pre-computed by
+    generate_fx_inverses.py under "DERIVED:<QUOTE><BASE>" symbols rather
+    than inverted on the fly here.
+    """
+    symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
+    if not symbol_list:
+        raise HTTPException(status_code=400, detail="symbols is required")
+
+    with market_read_connection() as cursor:
+        cursor.execute(
+            """
+            SELECT symbol, datetime_utc, open, high, low, close, volume
+            FROM market_data
+            WHERE symbol = ANY(%s)
+              AND timeframe = %s
+              AND datetime_utc >= NOW() - (%s || ' days')::interval
+            ORDER BY symbol, datetime_utc ASC
+            """,
+            (symbol_list, timeframe, lookback_days),
+        )
+        items = market_rows_to_dicts(cursor.fetchall())
+
+    return {
+        "symbols": symbol_list,
+        "timeframe": timeframe,
+        "lookback_days": lookback_days,
+        "count": len(items),
+        "items": items,
+    }
+
+
+@app.get("/trade-data", tags=["fundamentals"])
+def trade_data(
+    commodity: str,
+    period_start: str | None = None,
+    period_end: str | None = None,
+) -> dict:
+    """Per-country monthly export/import/net USD for one commodity, from
+    data_collector's UN Comtrade feed. `period` is "YYYYMM" (matches the
+    fundamental_trade_data table); left as string comparison since that
+    column is stored as text and sorts correctly in that format.
+    """
+    with market_read_connection() as cursor:
+        cursor.execute(
+            """
+            SELECT country, commodity, period, exports_usd, imports_usd, net_usd
+            FROM fundamental_trade_data
+            WHERE commodity = %s
+              AND (%s::text IS NULL OR period >= %s)
+              AND (%s::text IS NULL OR period <= %s)
+            ORDER BY period DESC, country
+            """,
+            (commodity, period_start, period_start, period_end, period_end),
+        )
+        items = market_rows_to_dicts(cursor.fetchall())
+
+    return {
+        "commodity": commodity,
+        "period_start": period_start,
+        "period_end": period_end,
+        "count": len(items),
+        "items": items,
+    }
+
+
+@app.get("/news/latest", tags=["news"])
+def latest_news(
+    asset: str | None = None,
+    asset_type: Literal["commodity", "currency"] | None = None,
+    min_confidence: Annotated[float, Query(ge=0, le=1)] = 0.0,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+) -> dict:
+    with read_connection() as connection:
+        rows = connection.execute(
+            """
+            SELECT
+                nca.classification_id,
+                nca.asset,
+                nca.asset_type,
+                nca.direction,
+                nca.sentiment,
+                nca.confidence,
+                nca.reasoning,
+                nc.article_id,
+                nc.provider,
+                nc.model_name,
+                nc.prompt_version,
+                nc.relevant,
+                a.source_name,
+                a.headline,
+                a.url,
+                a.publication_timestamp_utc,
+                a.retrieval_timestamp_utc
+            FROM news_classification_assets nca
+            JOIN news_classifications nc
+              ON nc.classification_id = nca.classification_id
+            JOIN news_articles a
+              ON a.article_id = nc.article_id
+            WHERE (? IS NULL OR nca.asset = ?)
+              AND (? IS NULL OR nca.asset_type = ?)
+              AND nca.confidence >= ?
+            ORDER BY a.publication_timestamp_utc DESC
+            LIMIT ?
+            """,
+            (
+                asset,
+                asset,
+                asset_type,
+                asset_type,
+                min_confidence,
+                limit,
+            ),
+        ).fetchall()
+        items = rows_to_dicts(rows)
+        return {
+            "asset_filter": asset,
+            "asset_type_filter": asset_type,
+            "min_confidence": min_confidence,
+            "count": len(items),
+            "items": items,
         }
 
 

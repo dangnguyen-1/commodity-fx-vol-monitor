@@ -1,0 +1,664 @@
+/* ===========================================================================
+   Commodity Volatility Tracker — "Departures Board" design system
+   Commodities tracked the way an airport tracks flights: a board that
+   visibly reranks by volatility, changed rows lit and held, detail views
+   read like a segmented boarding pass. Board surface + off-white flap
+   characters + one reserved accent for chrome/alerts; gains/losses/
+   informational data keep their own semantic hues (facts, not decoration).
+   =========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Martian+Mono:wght@400;500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  --board-bg:     #12141a;
+  --panel-bg:     #1a1d26;
+  --panel-bg-2:   #20232f;
+  --seam:         #2b2f3d;
+  --seam-soft:    #22252f;
+  --text:         #EAE7DC;
+  --muted:        #7d8394;
+  --accent:       #F2A93B;
+  --accent-dim:   rgba(242, 169, 59, 0.16);
+  --green:        #34D399;
+  --green-dim:    rgba(52, 211, 153, 0.14);
+  --red:          #FB5B6E;
+  --red-dim:      rgba(251, 91, 110, 0.14);
+  --blue:         #4EA1F7;
+  --blue-dim:     rgba(78, 161, 247, 0.14);
+
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-mono:    'Martian Mono', monospace;
+  --font-body:    'Public Sans', sans-serif;
+
+  /* Dash's own native component theme tokens (Dropdown, Slider, DatePicker)
+     — retuned from their light-mode defaults to the board's dark surface. */
+  --Dash-Fill-Inverse-Strong:     #1a1d26;
+  --Dash-Fill-Interactive-Strong: #F2A93B;
+  --Dash-Fill-Interactive-Weak:   rgba(242, 169, 59, 0.14);
+  --Dash-Fill-Disabled:           rgba(234, 231, 220, 0.06);
+  --Dash-Fill-Primary-Active:     rgba(234, 231, 220, 0.10);
+  --Dash-Fill-Primary-Hover:      rgba(234, 231, 220, 0.06);
+  --Dash-Stroke-Strong:           rgba(234, 231, 220, 0.28);
+  --Dash-Stroke-Weak:             rgba(234, 231, 220, 0.12);
+  --Dash-Text-Strong:             rgba(234, 231, 220, 0.94);
+  --Dash-Text-Primary:            rgba(234, 231, 220, 0.85);
+  --Dash-Text-Weak:               rgba(234, 231, 220, 0.62);
+  --Dash-Text-Disabled:           rgba(234, 231, 220, 0.38);
+}
+
+/* ---------------------------------------------------------------------------
+   Base
+   --------------------------------------------------------------------------- */
+
+html, body {
+  background-color: var(--board-bg) !important;
+  color: var(--text) !important;
+  font-family: var(--font-body);
+  letter-spacing: 0.01em;
+}
+
+body {
+  background-image:
+    radial-gradient(circle at 15% -10%, rgba(242, 169, 59, 0.05), transparent 40%),
+    radial-gradient(circle at 85% 0%, rgba(78, 161, 247, 0.04), transparent 35%);
+  background-attachment: fixed;
+}
+
+a { color: var(--blue); }
+a:hover { color: var(--accent); }
+
+::selection { background: var(--accent-dim); color: var(--text); }
+
+*:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
+}
+
+.text-muted { color: var(--muted) !important; }
+
+/* Section/card headings read as board signage throughout the app */
+h4, h5, h6 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Tabular / numeric figures live in the mono face throughout the app */
+.board-figure, .board-num, td, .rc-slider-mark-text, .Select-value-label {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1;
+}
+
+/* ---------------------------------------------------------------------------
+   Header — board signage
+   --------------------------------------------------------------------------- */
+
+/* The whole dashboard sits inside a shallow cabinet, not floating loose
+   on the page background — a thin frame plus an inset shadow at the
+   edges, like a board mounted behind glass. */
+.board-frame {
+  box-shadow:
+    inset 0 0 0 1px var(--seam),
+    inset 0 0 40px rgba(0, 0, 0, 0.4);
+}
+
+.board-header {
+  border-bottom: 1px solid var(--seam);
+}
+
+.board-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-size: 1.5rem;
+  color: var(--text) !important;
+}
+
+.board-subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.board-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-dim);
+  margin-right: 7px;
+  animation: dotPulse 2.4s ease-in-out infinite;
+  vertical-align: middle;
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.board-refresh-btn {
+  font-family: var(--font-mono) !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid var(--seam) !important;
+  color: var(--muted) !important;
+  background: transparent !important;
+  border-radius: 3px !important;
+  padding: 5px 12px !important;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.board-refresh-btn:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Flip tiles — summary strip
+   --------------------------------------------------------------------------- */
+
+.flip-tile {
+  background: var(--panel-bg);
+  border: 1px solid var(--seam);
+  border-radius: 4px;
+  padding: 10px 12px;
+  position: relative;
+  overflow: hidden;
+  animation: tileFlip 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  transform-origin: 50% 0%;
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.55);
+}
+
+.flip-tile::after {
+  /* the flap seam — the line where the two board halves meet */
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: var(--seam-soft);
+}
+
+.flip-tile--alert {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, var(--accent-dim), var(--panel-bg) 65%);
+}
+
+@keyframes tileFlip {
+  0%   { transform: rotateX(-90deg); opacity: 0; }
+  60%  { transform: rotateX(8deg);   opacity: 1; }
+  100% { transform: rotateX(0deg);   opacity: 1; }
+}
+
+.tile-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tile-price {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text);
+  margin-top: 3px;
+}
+
+.tile-return {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}
+
+.tile-hv {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  margin-top: 3px;
+  letter-spacing: 0.02em;
+}
+
+/* ---------------------------------------------------------------------------
+   Alert banner — "gate changed" board strip
+   --------------------------------------------------------------------------- */
+
+.board-alert {
+  background: var(--accent-dim) !important;
+  border: 1px solid var(--accent) !important;
+  border-radius: 3px !important;
+  color: var(--text) !important;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  animation: rowFlash 1.4s ease-out;
+}
+.board-alert .board-alert-label {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  margin-right: 10px;
+}
+
+@keyframes rowFlash {
+  0%   { background-color: rgba(242, 169, 59, 0.55); }
+  100% { background-color: var(--accent-dim); }
+}
+
+/* ---------------------------------------------------------------------------
+   Tabs — gate strip
+   --------------------------------------------------------------------------- */
+
+.nav-tabs {
+  border-bottom: 1px solid var(--seam) !important;
+  gap: 4px;
+}
+
+.nav-tabs .nav-link {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted) !important;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  padding: 10px 12px !important;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  color: var(--text) !important;
+  border-bottom-color: var(--seam) !important;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--accent) !important;
+  background: transparent !important;
+  border-bottom-color: var(--accent) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tables — the board itself
+   --------------------------------------------------------------------------- */
+
+.table {
+  --bs-table-bg: transparent;
+  color: var(--text);
+  border-color: var(--seam) !important;
+}
+
+.table thead th {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted) !important;
+  border-bottom: 1px solid var(--seam) !important;
+  background: transparent !important;
+  padding-bottom: 10px;
+}
+
+.table td {
+  border-color: var(--seam-soft) !important;
+  font-size: 0.85rem;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+
+.table-hover > tbody > tr:hover > * {
+  background-color: var(--panel-bg) !important;
+  color: var(--text) !important;
+}
+
+.table-dark {
+  --bs-table-bg: transparent;
+}
+
+.row-flash {
+  animation: rowFlash 1.4s ease-out;
+}
+
+/* ---------------------------------------------------------------------------
+   Cards / panels
+   --------------------------------------------------------------------------- */
+
+.card {
+  background: var(--panel-bg) !important;
+  border: 1px solid var(--seam) !important;
+  border-radius: 4px !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Alerts (dbc.Alert) — status strips, no left-border accent
+   --------------------------------------------------------------------------- */
+
+.alert {
+  border-radius: 3px !important;
+  border: 1px solid var(--seam) !important;
+  font-size: 0.85rem;
+}
+.alert-warning {
+  background: var(--accent-dim) !important;
+  border-color: var(--accent) !important;
+  color: var(--text) !important;
+}
+.alert-success {
+  background: var(--green-dim) !important;
+  border-color: var(--green) !important;
+  color: var(--text) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Badges
+   --------------------------------------------------------------------------- */
+
+.badge {
+  font-family: var(--font-mono) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em;
+  border-radius: 2px !important;
+  padding: 4px 7px !important;
+}
+.badge.bg-warning { background-color: var(--accent) !important; color: #1a1305 !important; }
+.badge.bg-success { background-color: var(--green) !important; color: #04241a !important; }
+.badge.bg-danger   { background-color: var(--red) !important; color: #2b0508 !important; }
+
+/* ---------------------------------------------------------------------------
+   Flow bars — ranked, click-to-zoom country bars on the Trade Flows tab
+   --------------------------------------------------------------------------- */
+
+.flow-bar-row {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 48px;
+  margin-bottom: 7px;
+  background: var(--panel-bg);
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.flow-bar-row {
+  color: inherit;
+}
+
+.flow-bar-row:hover {
+  border-color: var(--Dash-Stroke-Strong, var(--seam));
+}
+
+.flow-bar-row.flow-bar-active {
+  border-color: var(--accent);
+  border-width: 2px;
+}
+
+.flow-bar-row.flow-bar-na {
+  opacity: 0.65;
+}
+
+.flow-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+.flow-bar-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 14px;
+}
+
+.flow-bar-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  color: var(--text);
+}
+
+.flow-bar-value {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text);
+  opacity: 0.85;
+}
+
+.flow-bar-empty {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 12px 4px 10px;
+}
+
+.flow-back-btn {
+  display: block;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  padding: 7px 14px;
+  margin: 4px;
+  cursor: pointer;
+}
+
+.flow-back-btn:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.flow-center-card {
+  width: 100%;
+  background: var(--panel-bg);
+  border: 2px solid var(--accent);
+  border-radius: 4px;
+  padding: 22px 16px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.flow-center-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.8rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.flow-center-total {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text);
+  opacity: 0.85;
+  margin-top: 6px;
+}
+
+.flow-center-hint {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 14px;
+}
+
+/* ---------------------------------------------------------------------------
+   Segmented meters — replaces smooth pill progress bars with a discrete
+   board-native level readout (a stack of lit/unlit blocks, like a signal
+   strength or fuel gauge on a physical instrument panel).
+   --------------------------------------------------------------------------- */
+
+.progress {
+  background: var(--seam-soft) !important;
+  border-radius: 0 !important;
+  height: 9px !important;
+  overflow: visible !important;
+  display: flex;
+  gap: 2px;
+}
+
+.progress-bar {
+  border-radius: 0 !important;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.35) 0,
+    rgba(0, 0, 0, 0.35) 2px,
+    transparent 2px,
+    transparent 9px
+  );
+  box-shadow: none !important;
+}
+.progress-bar.bg-success { background-color: var(--green) !important; }
+.progress-bar.bg-warning { background-color: var(--accent) !important; }
+.progress-bar.bg-danger  { background-color: var(--red) !important; }
+
+/* ---------------------------------------------------------------------------
+   Dropdowns (dcc.Dropdown)
+   --------------------------------------------------------------------------- */
+
+.board-controls label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted) !important;
+}
+
+/* Dash's native --Dash-* tokens (retuned above) cover fills, text, and
+   strokes; these fill the remaining gaps in the board's own voice. */
+.dash-dropdown-wrapper {
+  border: 1px solid var(--seam);
+  border-radius: 3px;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+.dash-dropdown-wrapper:hover { border-color: var(--accent); }
+.dash-dropdown-value-count {
+  font-family: var(--font-mono);
+  font-size: 0.68rem !important;
+}
+.dash-dropdown-option[data-highlighted] {
+  background: var(--accent-dim) !important;
+  color: var(--accent) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Checklist / switches (dbc.Checklist)
+   --------------------------------------------------------------------------- */
+
+.form-check-input {
+  background-color: var(--panel-bg) !important;
+  border-color: var(--seam) !important;
+}
+.form-check-input:checked {
+  background-color: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+.form-check-label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Slider (dcc.Slider)
+   --------------------------------------------------------------------------- */
+
+.rc-slider-track { background-color: var(--accent) !important; }
+.rc-slider-rail { background-color: var(--seam) !important; }
+.rc-slider-handle {
+  background-color: var(--board-bg) !important;
+  border: 2px solid var(--accent) !important;
+  box-shadow: none !important;
+}
+.rc-slider-handle:hover, .rc-slider-handle:focus { border-color: var(--accent) !important; }
+.rc-slider-mark-text {
+  color: var(--muted) !important;
+  font-size: 0.72rem;
+}
+.rc-slider-dot { background-color: var(--seam) !important; border-color: var(--seam) !important; }
+
+/* ---------------------------------------------------------------------------
+   Spinner (dcc.Loading)
+   --------------------------------------------------------------------------- */
+
+._dash-loading-callback { color: var(--muted) !important; }
+
+/* ---------------------------------------------------------------------------
+   News feed
+   --------------------------------------------------------------------------- */
+
+.news-card {
+  background: var(--panel-bg) !important;
+  border: 1px solid var(--seam) !important;
+  border-radius: 3px !important;
+  transition: border-color 0.15s ease;
+}
+.news-card:hover { border-color: var(--blue) !important; }
+
+/* ---------------------------------------------------------------------------
+   Trend / tone icons — authored SVGs, single stroke, no unicode glyphs
+   --------------------------------------------------------------------------- */
+
+.icon-svg { display: inline-block; vertical-align: middle; }
+
+.icon-tri {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  vertical-align: middle;
+  margin-bottom: 1px;
+}
+.icon-tri--up {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-bottom: 7px solid currentColor;
+}
+.icon-tri--down {
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 7px solid currentColor;
+}
+.icon-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-bottom: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Responsive
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 576px) {
+  .board-title { font-size: 1.15rem; }
+  .nav-tabs .nav-link { padding: 8px 9px !important; font-size: 0.68rem; }
+  .tile-price { font-size: 0.92rem; }
+}

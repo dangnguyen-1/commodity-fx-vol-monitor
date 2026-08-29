@@ -1,0 +1,13 @@
+# blpapi (DATA_SOURCE="bloomberg") is deliberately NOT listed here: it isn't
+# on public PyPI (Bloomberg distributes it from their own package index), so
+# `pip install -r requirements.txt` would fail the build on any standard
+# cloud platform if it were. It's also local-only by nature — it talks to a
+# running Bloomberg Terminal, which no cloud container has. Install it by
+# hand (`pip install --index-url https://blpapi.bloomberg.com/repository/releases/python/simple/ blpapi`)
+# only if running this locally with DATA_SOURCE="bloomberg".
+yfinance>=0.2.40
+dash>=2.17.0
+dash-bootstrap-components>=1.6.0
+plotly>=5.22.0
+pandas>=2.2.0
+numpy>=1.26.0
