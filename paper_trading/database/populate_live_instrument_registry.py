@@ -269,6 +269,22 @@ def build_completed_registry(
                 f"{notes} {proxy_note}"
             ).strip()
 
+        if not row.active:
+            # Without this, a relationship's disabled-reason only ever
+            # existed as a manual CSV edit — every rerun of this script
+            # (e.g. a fresh deployment bootstrapping its own registry)
+            # silently regenerated the file and dropped it, with no
+            # record left of why that relationship is inactive.
+            disabled_note = (
+                f"Disabled for intraday paper trading: "
+                f"{commodity_symbol} has no one-minute bars "
+                "in the current collector data source."
+            )
+
+            notes = (
+                f"{notes} {disabled_note}"
+            ).strip()
+
         completed_rows.append(
             {
                 "relationship_id":
