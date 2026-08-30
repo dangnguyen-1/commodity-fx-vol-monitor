@@ -4,4 +4,5 @@ python-dotenv
 psycopg2-binary
 feedparser
 beautifulsoup4
+googlenewsdecoder
 openai

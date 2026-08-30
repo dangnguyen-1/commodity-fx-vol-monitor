@@ -123,6 +123,36 @@ CREATE TABLE IF NOT EXISTS relationship_weights (
 );
 
 
+-- Fast-reacting supplement to relationship_weights: that table only
+-- updates once a year from a 2-year rolling daily backtest, so a
+-- relationship that starts failing live could keep trading at full
+-- weight for up to 11 months before the next annual cycle catches it.
+-- This tracks each relationship's own trailing live paper-trading
+-- performance and can derate it (never above 1.0 — it can only ever
+-- reduce exposure, not increase it beyond what the annual process
+-- already decided) well before the next annual reweight. Stays at 1.0
+-- (no effect) until a relationship has accumulated enough closed
+-- trades to say anything statistically meaningful.
+CREATE TABLE IF NOT EXISTS relationship_live_derate (
+    relationship_id TEXT PRIMARY KEY,
+    as_of_utc TEXT NOT NULL,
+    window_days INTEGER NOT NULL,
+    trailing_trades INTEGER NOT NULL DEFAULT 0 CHECK (
+        trailing_trades >= 0
+    ),
+    trailing_net_pnl_usd REAL,
+    trailing_profit_factor REAL,
+    derate_multiplier REAL NOT NULL DEFAULT 1.0 CHECK (
+        derate_multiplier >= 0
+        AND derate_multiplier <= 1.0
+    ),
+    updated_at_utc TEXT NOT NULL,
+
+    FOREIGN KEY (relationship_id)
+        REFERENCES relationships(relationship_id)
+);
+
+
 CREATE TABLE IF NOT EXISTS market_bars_1m (
     bar_id INTEGER PRIMARY KEY AUTOINCREMENT,
     symbol TEXT NOT NULL,

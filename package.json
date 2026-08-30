@@ -6,7 +6,6 @@
     "pg": "^8.20.0",
     "ws": "^8.20.1"
   },
-
   "scripts": {
     "stream": "node data_collector/market_data/collectors/stream_many.js",
     "backfill:market": "node data_collector/market_data/collectors/historical_backfill.js",
@@ -18,5 +17,8 @@
     "test:login": "node data_collector/tests/test_login.js",
     "test:bars": "node data_collector/tests/test_bar_limit.js",
     "test:stream": "node data_collector/tests/test_stream.js"
+  },
+  "devDependencies": {
+    "dukascopy-node": "^1.50.0"
   }
 }

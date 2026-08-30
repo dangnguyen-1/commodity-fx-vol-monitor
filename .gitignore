@@ -21,3 +21,8 @@ __pycache__/
 # runs the dashboard from here rather than dashboard/ directly.
 dashboard/cache/
 /cache/
+
+# Downloaded Dukascopy historical data for the intraday-candidate backtest
+# — large, regeneratable from intraday_backtest/download_data.sh, not
+# source.
+intraday_backtest/data/

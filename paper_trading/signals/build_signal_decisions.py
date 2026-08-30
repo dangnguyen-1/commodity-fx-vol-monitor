@@ -40,6 +40,7 @@ class FeatureCandidate:
     relationship_direction: int
     selected: int
     selection_weight: float
+    live_derate_multiplier: float
     commodity_impulse: float
     news_impulse: float
     expected_fx_impulse: float
@@ -127,6 +128,7 @@ def require_tables(
         "paper_runs",
         "relationships",
         "relationship_weights",
+        "relationship_live_derate",
         "feature_snapshots",
         "signal_decisions",
         "positions",
@@ -310,6 +312,7 @@ def load_complete_candidates(
             r.fx_direction_multiplier,
             rw.selected,
             rw.selection_weight,
+            COALESCE(rld.derate_multiplier, 1.0),
             f.commodity_impulse,
             f.news_impulse,
             f.expected_fx_impulse,
@@ -323,6 +326,8 @@ def load_complete_candidates(
         LEFT JOIN relationship_weights rw
           ON rw.relationship_id = f.relationship_id
          AND rw.selection_year = ?
+        LEFT JOIN relationship_live_derate rld
+          ON rld.relationship_id = f.relationship_id
         WHERE f.run_id = ?
           AND f.spec_id = ?
           AND f.feature_timestamp_utc = ?
@@ -373,30 +378,34 @@ def load_complete_candidates(
                     row[10],
                     "selection_weight",
                 ),
-                commodity_impulse=finite_number(
+                live_derate_multiplier=finite_number(
                     row[11],
+                    "live_derate_multiplier",
+                ),
+                commodity_impulse=finite_number(
+                    row[12],
                     "commodity_impulse",
                 ),
                 news_impulse=finite_number(
-                    row[12],
+                    row[13],
                     "news_impulse",
                 ),
                 expected_fx_impulse=finite_number(
-                    row[13],
+                    row[14],
                     "expected_fx_impulse",
                 ),
                 observed_fx_impulse=finite_number(
-                    row[14],
+                    row[15],
                     "observed_fx_impulse",
                 ),
                 divergence_score=finite_number(
-                    row[15],
+                    row[16],
                     "divergence_score",
                 ),
-                relevant_news_count=int(row[16]),
+                relevant_news_count=int(row[17]),
                 market_window_coverage_pct=(
                     finite_number(
-                        row[17],
+                        row[18],
                         "market_window_coverage_pct",
                     )
                 ),
@@ -489,6 +498,7 @@ def evaluate_candidate(
     uncapped_weighted_strength = (
         raw_strength
         * candidate.selection_weight
+        * candidate.live_derate_multiplier
     )
     display_strength = min(
         strength_cap,
@@ -508,6 +518,9 @@ def evaluate_candidate(
         "selected": candidate.selected,
         "selection_weight": (
             candidate.selection_weight
+        ),
+        "live_derate_multiplier": (
+            candidate.live_derate_multiplier
         ),
         "commodity_impulse": (
             candidate.commodity_impulse
@@ -668,6 +681,7 @@ def evaluate_candidate(
     final_strength = (
         base_sizing_strength
         * candidate.selection_weight
+        * candidate.live_derate_multiplier
     )
 
     snapshot["entry_eligible"] = True
