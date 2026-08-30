@@ -47,6 +47,8 @@ CURRENCY_PAIRS: dict[str, dict] = {
     "ARG": {"ticker": "ARSUSD=X", "tradingview": None,              "name": "Argentine Peso",     "primary": "Agriculture"},
     "UKR": {"ticker": "UAHUSD=X", "tradingview": None,              "name": "Ukrainian Hryvnia",  "primary": "Agriculture"},
     "KAZ": {"ticker": "KZTUSD=X", "tradingview": None,              "name": "Kazakhstani Tenge",  "primary": "Agriculture"},
+    # World's #3 soybean exporter (~3.4M tonnes/year).
+    "PRY": {"ticker": "PYGUSD=X", "tradingview": None,              "name": "Paraguayan Guarani", "primary": "Agriculture"},
     # Safe-haven / reserve
     "CHE": {"ticker": "CHFUSD=X", "tradingview": "DERIVED:CHFUSD",  "name": "Swiss Franc",        "primary": "Metals"},
     "JPN": {"ticker": "JPYUSD=X", "tradingview": "DERIVED:JPYUSD",  "name": "Japanese Yen",       "primary": "Energy"},
@@ -91,10 +93,25 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     # targeting 1M+ tonnes in 2026. Both new currencies — see
     # CURRENCY_PAIRS.
     "Copper":      ["CHL", "PER", "AUS", "ZAF", "COD", "ZMB"],
-    "Wheat":       ["AUS", "CAN", "RUS", "UKR", "ARG"],
+    # KAZ added: top-10 exporter, one of the fastest-growing (+46% in
+    # 2024-25) — was already a tracked currency, just missing here.
+    "Wheat":       ["AUS", "CAN", "RUS", "UKR", "ARG", "KAZ"],
+    # Corn's top 5 exporters (US, Brazil, Argentina, Ukraine, France) are
+    # already covered by trackable currencies — US is the base currency
+    # and France uses the euro, which isn't tracked as a France-specific
+    # pair — so no changes here.
     "Corn":        ["BRA", "ARG", "UKR"],
-    "Soybeans":    ["BRA", "ARG"],
+    # CAN and UKR added: both already-tracked currencies, both among the
+    # top soybean exporters (Brazil, US, Paraguay, Canada, Ukraine,
+    # Argentina), just missing from this group. PRY (Paraguay) added as
+    # a new currency: world's #3 exporter (~3.4M tonnes/year).
+    "Soybeans":    ["BRA", "ARG", "CAN", "UKR", "PRY"],
 }
+
+# Natural Gas is deliberately left at ["RUS", "NOR", "AUS", "CAN"] despite
+# Qatar being a top-3 LNG exporter: the Qatari riyal is a hard USD peg, so
+# its "FX correlation" with gas prices is structurally ~0 regardless of
+# the real trade relationship — tracking it wouldn't show anything.
 
 # Derived lookups for tracking the FX pairs as instruments in their own right
 FX_NAMES: list[str] = [v["name"] for v in CURRENCY_PAIRS.values()]
