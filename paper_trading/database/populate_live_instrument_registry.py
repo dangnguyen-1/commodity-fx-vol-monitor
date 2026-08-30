@@ -628,32 +628,36 @@ def main() -> None:
         f"Relationships: {len(completed)}"
     )
 
+    unique_commodity_symbols = completed[
+        "live_commodity_symbol"
+    ].nunique()
     print(
         "Unique commodity symbols: "
-        f"{completed[
-            'live_commodity_symbol'
-        ].nunique()}"
+        f"{unique_commodity_symbols}"
     )
 
+    unique_fx_symbols = completed[
+        "live_fx_symbol"
+    ].nunique()
     print(
         "Unique live FX symbols: "
-        f"{completed[
-            'live_fx_symbol'
-        ].nunique()}"
+        f"{unique_fx_symbols}"
     )
 
+    inverse_fx_transforms = completed[
+        "fx_price_transform"
+    ].eq("inverse").sum()
     print(
         "Inverse FX transforms: "
-        f"{completed[
-            'fx_price_transform'
-        ].eq('inverse').sum()}"
+        f"{inverse_fx_transforms}"
     )
 
+    positive_direction_multipliers = completed[
+        "fx_direction_multiplier"
+    ].eq(1).sum()
     print(
         "Positive direction multipliers: "
-        f"{completed[
-            'fx_direction_multiplier'
-        ].eq(1).sum()}"
+        f"{positive_direction_multipliers}"
     )
 
     print(

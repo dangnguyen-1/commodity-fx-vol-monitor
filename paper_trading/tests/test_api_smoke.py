@@ -25,6 +25,7 @@ ENDPOINTS = [
     "/orders",
     "/fills",
     "/equity",
+    "/news/latest",
     "/alerts",
     "/summary",
 ]

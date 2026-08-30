@@ -1576,12 +1576,13 @@ def main() -> None:
         f"{risk['maximum_gross_exposure_pct']:.2%}"
     )
 
+    max_round_trip_cost_bps = execution[
+        "reject_entry_when_expected_"
+        "round_trip_cost_bps_exceeds"
+    ]
     print(
         "Maximum expected round-trip cost: "
-        f"{execution[
-            'reject_entry_when_expected_'
-            'round_trip_cost_bps_exceeds'
-        ]:.2f} bps"
+        f"{max_round_trip_cost_bps:.2f} bps"
     )
 
     print(
