@@ -41,6 +41,19 @@ module.exports = {
       max_restarts: 20,
     },
     {
+      // Rebuilds the DERIVED:xxxUSD inverse FX rows from tv-stream's raw
+      // USDxxx quotes (see generate_fx_inverses.py) — was previously
+      // only ever run once by hand and never scheduled, so every
+      // currency using a DERIVED symbol (CAD, CHF, JPY, and now the
+      // rest of the commodity-currency universe) would have silently
+      // gone stale the same way the daily bars and news sync did.
+      name: "fx-inverse-refresh",
+      script: "scripts/refresh_fx_inverses.sh",
+      interpreter: "bash",
+      autorestart: false,
+      cron_restart: "*/5 * * * *",
+    },
+    {
       // Bridges news-stream/news-sentiment-stream's Postgres output into
       // the SQLite database the API's /news/latest endpoint actually
       // reads from — see paper_trading/news_data/sync_news.py. Without

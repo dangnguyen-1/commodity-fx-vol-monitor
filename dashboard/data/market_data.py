@@ -1,9 +1,13 @@
 """
-Market data fetcher — tries the paper-trading pipeline's live TradingView
-feed first (via its read-only API, see paper_trading/api/app.py's
-/market-data route), and falls back to Yahoo Finance per-instrument for
-anything the pipeline doesn't track. TradingView is the priority source;
-Yahoo only fills the gaps.
+Market data fetcher — sourced from the paper-trading pipeline's live
+TradingView feed (via its read-only API, see paper_trading/api/app.py's
+/market-data route), blending the pre-aggregated daily-bar table (long
+history) with raw one-minute ticks (today's price, always live) so
+nothing here is ever stuck waiting on a scheduled daily rebuild. Every
+commodity and currency the dashboard tracks now has a live TradingView
+symbol (see config.py / data/fx.py) — Yahoo Finance is kept only as a
+last-resort fallback if the pipeline itself is unreachable, not a
+routine per-instrument gap-filler.
 """
 
 from __future__ import annotations
@@ -37,12 +41,14 @@ def _normalize_to_daily(series: pd.Series) -> pd.Series:
     return normalized.groupby(level=0).last()
 
 
-def _fetch_pipeline_prices(tv_symbols: list[str], lookback_days: int) -> pd.DataFrame:
+def _fetch_pipeline_prices(tv_symbols: list[str], lookback_days: int, timeframe: str = "1D") -> pd.DataFrame:
     """One batched call to the pipeline API for however many TradingView
-    symbols are requested. Returns a DataFrame indexed by date with one
-    column per symbol (daily close); empty on any failure (pipeline
-    unreachable, or nothing came back) so the caller falls back cleanly
-    rather than partially succeeding with a confusing partial frame."""
+    symbols are requested, at the given TradingView timeframe ("1D" for
+    pre-aggregated daily bars, "1" for raw one-minute ticks). Returns a
+    DataFrame indexed by date/timestamp with one column per symbol
+    (close); empty on any failure (pipeline unreachable, or nothing came
+    back) so the caller falls back cleanly rather than partially
+    succeeding with a confusing partial frame."""
     if not tv_symbols:
         return pd.DataFrame()
     try:
@@ -50,7 +56,7 @@ def _fetch_pipeline_prices(tv_symbols: list[str], lookback_days: int) -> pd.Data
             f"{PIPELINE_API_BASE_URL}/market-data",
             params={
                 "symbols": ",".join(tv_symbols),
-                "timeframe": "1D",
+                "timeframe": timeframe,
                 "lookback_days": lookback_days,
             },
             timeout=_REQUEST_TIMEOUT,
@@ -58,7 +64,7 @@ def _fetch_pipeline_prices(tv_symbols: list[str], lookback_days: int) -> pd.Data
         resp.raise_for_status()
         items = resp.json().get("items", [])
     except Exception as exc:
-        logger.warning("Pipeline market-data fetch failed: %s", exc)
+        logger.warning("Pipeline market-data fetch failed (timeframe=%s): %s", timeframe, exc)
         return pd.DataFrame()
 
     if not items:
@@ -69,6 +75,29 @@ def _fetch_pipeline_prices(tv_symbols: list[str], lookback_days: int) -> pd.Data
     pivot = df.pivot_table(index="datetime_utc", columns="symbol", values="close", aggfunc="last")
     pivot.index.name = "date"
     return pivot
+
+
+_RECENT_LIVE_DAYS = 3  # how far back to pull raw 1-minute ticks for "today's" price
+
+
+def _fetch_recent_live_prices(tv_symbols: list[str]) -> pd.DataFrame:
+    """Pulls raw one-minute bars for the last few days and collapses them
+    to one row per calendar day (the latest tick of each day). The
+    pre-aggregated "1D" table (_fetch_pipeline_prices) only gets rebuilt
+    once a day by a scheduled job — this is what keeps "today's" price
+    genuinely live in between those rebuilds, straight from the same
+    1-minute feed tv-stream is always writing, rather than waiting on
+    the next scheduled daily-bar run or falling back to a delayed
+    third-party source."""
+    return _normalize_columns_to_daily(
+        _fetch_pipeline_prices(tv_symbols, _RECENT_LIVE_DAYS, timeframe="1")
+    )
+
+
+def _normalize_columns_to_daily(pivot: pd.DataFrame) -> pd.DataFrame:
+    if pivot.empty:
+        return pivot
+    return pd.DataFrame({col: _normalize_to_daily(pivot[col].dropna()) for col in pivot.columns})
 
 
 def fetch_prices(
@@ -90,13 +119,23 @@ def fetch_prices(
     """
     tv_symbols = [s for s in names_to_tv.values() if s]
     tv_pivot = _fetch_pipeline_prices(tv_symbols, lookback_days)
+    tv_recent_pivot = _fetch_recent_live_prices(tv_symbols)
     tv_symbol_to_name = {v: k for k, v in names_to_tv.items() if v}
 
     result: dict[str, pd.Series] = {}
-    for tv_symbol in tv_pivot.columns:
+    for tv_symbol in set(tv_pivot.columns) | set(tv_recent_pivot.columns):
         name = tv_symbol_to_name.get(tv_symbol)
-        if name and tv_pivot[tv_symbol].notna().any():
-            result[name] = _normalize_to_daily(tv_pivot[tv_symbol].dropna())
+        if not name:
+            continue
+        daily = _normalize_to_daily(tv_pivot[tv_symbol].dropna()) if tv_symbol in tv_pivot.columns else pd.Series(dtype=float)
+        recent = tv_recent_pivot[tv_symbol].dropna() if tv_symbol in tv_recent_pivot.columns else pd.Series(dtype=float)
+        # recent (from live 1-minute ticks) wins on any day both cover,
+        # since it's always at least as fresh as the daily-bar table and
+        # is the only one of the two that has *today* before the next
+        # scheduled daily-bar rebuild runs.
+        combined = recent.combine_first(daily)
+        if not combined.empty:
+            result[name] = combined
 
     missing_names = [n for n in names_to_yahoo if n not in result]
     if missing_names:

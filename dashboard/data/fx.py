@@ -26,29 +26,29 @@ logger = logging.getLogger(__name__)
 CURRENCY_PAIRS: dict[str, dict] = {
     # Energy-linked
     "CAN": {"ticker": "CADUSD=X", "tradingview": "DERIVED:CADUSD",  "name": "Canadian Dollar",    "primary": "Energy"},
-    "NOR": {"ticker": "NOKUSD=X", "tradingview": None,              "name": "Norwegian Krone",    "primary": "Energy"},
-    "RUS": {"ticker": "RUBUSD=X", "tradingview": None,              "name": "Russian Ruble",      "primary": "Energy"},
-    "MEX": {"ticker": "MXNUSD=X", "tradingview": None,              "name": "Mexican Peso",       "primary": "Energy"},
+    "NOR": {"ticker": "NOKUSD=X", "tradingview": "DERIVED:NOKUSD",  "name": "Norwegian Krone",    "primary": "Energy"},
+    "RUS": {"ticker": "RUBUSD=X", "tradingview": "DERIVED:RUBUSD",  "name": "Russian Ruble",      "primary": "Energy"},
+    "MEX": {"ticker": "MXNUSD=X", "tradingview": "DERIVED:MXNUSD",  "name": "Mexican Peso",       "primary": "Energy"},
     "BRA": {"ticker": "BRLUSD=X", "tradingview": "FX_IDC:BRLUSD",   "name": "Brazilian Real",     "primary": "Agriculture"},
-    "COL": {"ticker": "COPUSD=X", "tradingview": None,              "name": "Colombian Peso",     "primary": "Energy"},
+    "COL": {"ticker": "COPUSD=X", "tradingview": "DERIVED:COPUSD",  "name": "Colombian Peso",     "primary": "Energy"},
     # Metals-linked
     "AUS": {"ticker": "AUDUSD=X", "tradingview": "FX:AUDUSD",       "name": "Australian Dollar",  "primary": "Metals"},
-    "CHL": {"ticker": "CLPUSD=X", "tradingview": None,              "name": "Chilean Peso",       "primary": "Metals"},
-    "ZAF": {"ticker": "ZARUSD=X", "tradingview": None,              "name": "South African Rand", "primary": "Metals"},
-    "PER": {"ticker": "PENUSD=X", "tradingview": None,              "name": "Peruvian Sol",       "primary": "Metals"},
+    "CHL": {"ticker": "CLPUSD=X", "tradingview": "DERIVED:CLPUSD",  "name": "Chilean Peso",       "primary": "Metals"},
+    "ZAF": {"ticker": "ZARUSD=X", "tradingview": "DERIVED:ZARUSD",  "name": "South African Rand", "primary": "Metals"},
+    "PER": {"ticker": "PENUSD=X", "tradingview": "DERIVED:PENUSD",  "name": "Peruvian Sol",       "primary": "Metals"},
     # World's #2 copper producer (after Chile) — Kamoa-Kakula alone has
     # made the DRC a bigger copper story than most tracked currencies here.
-    "COD": {"ticker": "CDFUSD=X", "tradingview": None,              "name": "Congolese Franc",    "primary": "Metals"},
+    "COD": {"ticker": "CDFUSD=X", "tradingview": "DERIVED:CDFUSD",  "name": "Congolese Franc",    "primary": "Metals"},
     # Africa's #2 copper producer, targeting 1M+ tonnes in 2026.
-    "ZMB": {"ticker": "ZMWUSD=X", "tradingview": None,              "name": "Zambian Kwacha",     "primary": "Metals"},
+    "ZMB": {"ticker": "ZMWUSD=X", "tradingview": "DERIVED:ZMWUSD",  "name": "Zambian Kwacha",     "primary": "Metals"},
     # Africa's largest gold producer, ~6th globally and still growing.
-    "GHA": {"ticker": "GHSUSD=X", "tradingview": None,              "name": "Ghanaian Cedi",      "primary": "Metals"},
+    "GHA": {"ticker": "GHSUSD=X", "tradingview": "DERIVED:GHSUSD",  "name": "Ghanaian Cedi",      "primary": "Metals"},
     # Agriculture-linked
-    "ARG": {"ticker": "ARSUSD=X", "tradingview": None,              "name": "Argentine Peso",     "primary": "Agriculture"},
-    "UKR": {"ticker": "UAHUSD=X", "tradingview": None,              "name": "Ukrainian Hryvnia",  "primary": "Agriculture"},
-    "KAZ": {"ticker": "KZTUSD=X", "tradingview": None,              "name": "Kazakhstani Tenge",  "primary": "Agriculture"},
+    "ARG": {"ticker": "ARSUSD=X", "tradingview": "DERIVED:ARSUSD",  "name": "Argentine Peso",     "primary": "Agriculture"},
+    "UKR": {"ticker": "UAHUSD=X", "tradingview": "DERIVED:UAHUSD",  "name": "Ukrainian Hryvnia",  "primary": "Agriculture"},
+    "KAZ": {"ticker": "KZTUSD=X", "tradingview": "DERIVED:KZTUSD",  "name": "Kazakhstani Tenge",  "primary": "Agriculture"},
     # World's #3 soybean exporter (~3.4M tonnes/year).
-    "PRY": {"ticker": "PYGUSD=X", "tradingview": None,              "name": "Paraguayan Guarani", "primary": "Agriculture"},
+    "PRY": {"ticker": "PYGUSD=X", "tradingview": "DERIVED:PYGUSD",  "name": "Paraguayan Guarani", "primary": "Agriculture"},
     # Safe-haven / reserve
     "CHE": {"ticker": "CHFUSD=X", "tradingview": "DERIVED:CHFUSD",  "name": "Swiss Franc",        "primary": "Metals"},
     "JPN": {"ticker": "JPYUSD=X", "tradingview": "DERIVED:JPYUSD",  "name": "Japanese Yen",       "primary": "Energy"},

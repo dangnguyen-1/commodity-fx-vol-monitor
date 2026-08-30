@@ -12,7 +12,13 @@ TRADING_DAYS = 252
 
 
 def log_returns(prices: pd.DataFrame) -> pd.DataFrame:
-    return np.log(prices / prices.shift(1)).dropna()
+    # how="all" (not the default "any"): a single sparse-history column
+    # (e.g. a currency added to the collector only recently) must not
+    # wipe out every other column's return for the same date. Only drop
+    # a date when literally nothing has a price on it (e.g. a shared
+    # market holiday) — anything else should surface as a per-column
+    # NaN that rolling()/iloc[-1] already handle correctly on their own.
+    return np.log(prices / prices.shift(1)).dropna(how="all")
 
 
 def historical_volatility(
