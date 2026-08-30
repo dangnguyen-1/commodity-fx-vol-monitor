@@ -35,6 +35,17 @@ VOL_RATIO_THRESHOLD = 0.85   # HV30 / alert threshold
 CORR_STRENGTH_THRESHOLD = 0.30  # |correlation| needed to call the link "real"
 MOVE_EPSILON = 0.1  # % move below which a direction doesn't count as directional
 
+# Currencies whose only data source (Yahoo Finance — no TradingView symbol
+# exists for these) is thin enough that a real chunk of daily closes are
+# just the prior day's value repeated, not a fresh live quote. Checked
+# directly: over a trailing 30-day sample, the Congolese Franc repeated
+# ~53% of days and the Ghanaian Cedi ~13% — both look more like an
+# occasionally-refreshed fixing rate than a live market feed. That flattens
+# their measured volatility/correlation below what the real relationship
+# probably is, so they're marked in the table rather than presented at
+# face value.
+THIN_DATA_CURRENCIES = {"COD", "GHA"}
+
 
 def layout() -> html.Div:
     return html.Div([
@@ -76,6 +87,7 @@ def build_opportunity_board(
 
     rows = []
     flagged_count = 0
+    thin_data_used = False
 
     for name in NAMES:
         if name not in fx_corr.columns or fx_corr[name].dropna().empty:
@@ -95,6 +107,9 @@ def build_opportunity_board(
         for iso3 in candidates:
             corr_value = corr_col.loc[iso3]
             currency_name = iso3_to_name.get(iso3, iso3)
+            if iso3 in THIN_DATA_CURRENCIES:
+                thin_data_used = True
+                currency_name += " *"
 
             commodity_5d = commodity_returns.at["5d", name] if "5d" in commodity_returns.index else np.nan
             fx_5d = (
@@ -187,4 +202,15 @@ def build_opportunity_board(
             className="text-muted small mb-2",
         )
 
-    return html.Div([pending_note, summary, table])
+    thin_data_note = html.Div()
+    if thin_data_used:
+        thin_data_note = html.Div(
+            "* No live TradingView feed exists for this currency, and its Yahoo "
+            "Finance data is thin — a large share of daily closes just repeat the "
+            "prior day's value rather than reflecting a fresh live quote. Treat "
+            "its correlation/volatility numbers here as directionally suggestive, "
+            "not precise.",
+            className="text-muted small mt-2",
+        )
+
+    return html.Div([pending_note, summary, table, thin_data_note])
