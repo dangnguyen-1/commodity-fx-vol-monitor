@@ -45,10 +45,19 @@ CURRENCY_PAIRS: dict[str, dict] = {
     "JPN": {"ticker": "JPYUSD=X", "tradingview": "DERIVED:JPYUSD",  "name": "Japanese Yen",       "primary": "Energy"},
 }
 
-# Which commodity each FX pair is most correlated with (for display grouping)
+# Which commodity each FX pair is most correlated with (for display grouping
+# and as the candidate pool the opportunities screener draws from — see
+# views/opportunities.py). WTI and Brent are two distinct benchmarks priced
+# in different markets, so they get different currency pools rather than
+# sharing one: WTI is the US/Western-Hemisphere benchmark (Cushing,
+# Oklahoma), so Canada's and Mexico's crude exports price off WTI
+# differentials and Colombia's Gulf-Coast-bound exports follow it too.
+# Brent is the North Sea/global benchmark — Norway's crude *is* one of the
+# streams that makes up the Brent basket, and Russia's Urals grade has
+# historically been priced as a differential to dated Brent.
 COMMODITY_FX_GROUPS: dict[str, list[str]] = {
-    "WTI Crude":   ["CAN", "NOR", "RUS", "MEX", "COL"],
-    "Brent Crude": ["CAN", "NOR", "RUS", "MEX", "COL"],
+    "WTI Crude":   ["CAN", "MEX", "COL"],
+    "Brent Crude": ["NOR", "RUS"],
     "Natural Gas": ["RUS", "NOR", "AUS", "CAN"],
     "Gold":        ["AUS", "ZAF", "CAN", "CHE"],
     "Silver":      ["AUS", "ZAF", "CHL", "PER"],

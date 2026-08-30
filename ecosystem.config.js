@@ -41,6 +41,19 @@ module.exports = {
       max_restarts: 20,
     },
     {
+      // Bridges news-stream/news-sentiment-stream's Postgres output into
+      // the SQLite database the API's /news/latest endpoint actually
+      // reads from — see paper_trading/news_data/sync_news.py. Without
+      // this running, the classified articles pile up in Postgres but
+      // the dashboard never sees anything past whenever this last ran.
+      // Incremental/checkpointed, so a 5-minute cadence is cheap.
+      name: "news-sync",
+      script: "scripts/sync_news.sh",
+      interpreter: "bash",
+      autorestart: false,
+      cron_restart: "*/5 * * * *",
+    },
+    {
       // UN Comtrade is monthly-cadence data, not real-time — this exits
       // after each run (autorestart off) and pm2's cron_restart re-fires
       // it daily to catch newly-published months. The backfill script
