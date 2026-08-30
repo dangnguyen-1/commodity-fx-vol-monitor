@@ -36,6 +36,13 @@ CURRENCY_PAIRS: dict[str, dict] = {
     "CHL": {"ticker": "CLPUSD=X", "tradingview": None,              "name": "Chilean Peso",       "primary": "Metals"},
     "ZAF": {"ticker": "ZARUSD=X", "tradingview": None,              "name": "South African Rand", "primary": "Metals"},
     "PER": {"ticker": "PENUSD=X", "tradingview": None,              "name": "Peruvian Sol",       "primary": "Metals"},
+    # World's #2 copper producer (after Chile) — Kamoa-Kakula alone has
+    # made the DRC a bigger copper story than most tracked currencies here.
+    "COD": {"ticker": "CDFUSD=X", "tradingview": None,              "name": "Congolese Franc",    "primary": "Metals"},
+    # Africa's #2 copper producer, targeting 1M+ tonnes in 2026.
+    "ZMB": {"ticker": "ZMWUSD=X", "tradingview": None,              "name": "Zambian Kwacha",     "primary": "Metals"},
+    # Africa's largest gold producer, ~6th globally and still growing.
+    "GHA": {"ticker": "GHSUSD=X", "tradingview": None,              "name": "Ghanaian Cedi",      "primary": "Metals"},
     # Agriculture-linked
     "ARG": {"ticker": "ARSUSD=X", "tradingview": None,              "name": "Argentine Peso",     "primary": "Agriculture"},
     "UKR": {"ticker": "UAHUSD=X", "tradingview": None,              "name": "Ukrainian Hryvnia",  "primary": "Agriculture"},
@@ -47,21 +54,43 @@ CURRENCY_PAIRS: dict[str, dict] = {
 
 # Which commodity each FX pair is most correlated with (for display grouping
 # and as the candidate pool the opportunities screener draws from — see
-# views/opportunities.py). WTI and Brent are two distinct benchmarks priced
-# in different markets, so they get different currency pools rather than
-# sharing one: WTI is the US/Western-Hemisphere benchmark (Cushing,
-# Oklahoma), so Canada's and Mexico's crude exports price off WTI
-# differentials and Colombia's Gulf-Coast-bound exports follow it too.
-# Brent is the North Sea/global benchmark — Norway's crude *is* one of the
-# streams that makes up the Brent basket, and Russia's Urals grade has
-# historically been priced as a differential to dated Brent.
+# views/opportunities.py). Verified against each grade's actual published
+# pricing convention rather than assumed:
+#   - CAD: Western Canadian Select's pricing formula references only WTI
+#     (the WCS-WTI differential), but as a major oil-exporter currency
+#     CAD also trades on broad global crude sentiment, which Brent sets
+#     as the world benchmark — so it's tracked as dual rather than
+#     WTI-only.
+#   - MXN: Pemex's Maya formula is literally 0.65*WTI Houston + 0.35*ICE
+#     Brent + a K factor — genuinely priced off both. Dual.
+#   - COP: Colombian grades (Castilla, Vasconia) now benchmark mainly to
+#     Brent as Gulf Coast exports have faded, but WTI is still an active
+#     reference — dual, Brent-leaning.
+#   - NOK: Norwegian crude (Ekofisk/Oseberg/Troll) is a physical component
+#     of the Brent basket itself (the "BFOE" blend) — there is no WTI
+#     linkage in its pricing convention. Brent-only.
+#   - RUB: Urals is priced exclusively as a differential to Dated Brent.
+#     No WTI reference exists in its pricing convention. Brent-only.
+#   - JPY: Japan's dominant crude benchmark is actually Dubai (Middle
+#     East sour), not Brent or WTI — but it's tracked here as WTI-linked
+#     for its real, if secondary and growing, exposure to US crude
+#     (record Japanese WTI purchase volumes as it diversifies away from
+#     the Middle East).
 COMMODITY_FX_GROUPS: dict[str, list[str]] = {
-    "WTI Crude":   ["CAN", "MEX", "COL"],
-    "Brent Crude": ["NOR", "RUS"],
+    "WTI Crude":   ["CAN", "MEX", "COL", "JPN"],
+    "Brent Crude": ["CAN", "NOR", "RUS", "MEX", "COL"],
     "Natural Gas": ["RUS", "NOR", "AUS", "CAN"],
-    "Gold":        ["AUS", "ZAF", "CAN", "CHE"],
-    "Silver":      ["AUS", "ZAF", "CHL", "PER"],
-    "Copper":      ["CHL", "PER", "AUS", "ZAF"],
+    # RUS added: world's #2 gold producer. GHA added: Africa's #1 and
+    # world's #6 gold producer (new currency, see CURRENCY_PAIRS).
+    "Gold":        ["AUS", "ZAF", "CAN", "CHE", "RUS", "GHA"],
+    # MEX added: world's #1 silver producer by a wide margin (~1/5 of
+    # global supply) — was only tracked here for oil before.
+    "Silver":      ["AUS", "ZAF", "CHL", "PER", "MEX"],
+    # COD (DRC) added: world's #2 copper producer, ahead of the US, on
+    # the back of Kamoa-Kakula. ZMB (Zambia) added: Africa's #2 producer,
+    # targeting 1M+ tonnes in 2026. Both new currencies — see
+    # CURRENCY_PAIRS.
+    "Copper":      ["CHL", "PER", "AUS", "ZAF", "COD", "ZMB"],
     "Wheat":       ["AUS", "CAN", "RUS", "UKR", "ARG"],
     "Corn":        ["BRA", "ARG", "UKR"],
     "Soybeans":    ["BRA", "ARG"],

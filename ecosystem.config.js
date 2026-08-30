@@ -54,6 +54,18 @@ module.exports = {
       cron_restart: "*/5 * * * *",
     },
     {
+      // Rebuilds the pre-aggregated 1D bars market_data holds alongside
+      // the raw 1-minute ticks (see historical_daily_backfill.js) — the
+      // dashboard's daily-close prices come from these, not the raw
+      // feed, and they'd silently freeze without this running. Daily,
+      // well after any tracked market's close.
+      name: "daily-bars-refresh",
+      script: "scripts/refresh_daily_bars.sh",
+      interpreter: "bash",
+      autorestart: false,
+      cron_restart: "0 6 * * *",
+    },
+    {
       // UN Comtrade is monthly-cadence data, not real-time — this exits
       // after each run (autorestart off) and pm2's cron_restart re-fires
       // it daily to catch newly-published months. The backfill script
