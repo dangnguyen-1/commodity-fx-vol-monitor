@@ -107,5 +107,17 @@ module.exports = {
       autorestart: true,
       restart_delay: 3000,
     },
+    {
+      // The Step 6 strategy monitor (paper_trading/dashboard/app.py) —
+      // a separate Streamlit app, distinct from the Dash research
+      // dashboard above. Needs the wrapper script since `streamlit run`
+      // doesn't resolve package-relative imports from CWD the way
+      // `python -m` does.
+      name: "strategy-monitor",
+      script: "scripts/run_dashboard_streamlit.sh",
+      interpreter: "bash",
+      autorestart: true,
+      restart_delay: 3000,
+    },
   ],
 };
