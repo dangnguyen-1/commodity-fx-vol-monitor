@@ -17,5 +17,7 @@ __pycache__/
 *.py[cod]
 
 # Dashboard's own disk caches (World Bank indicators, free-Comtrade bilateral
-# fallback) — fetched on demand, not source
+# fallback) — fetched on demand, not source. Lands at repo root when pm2
+# runs the dashboard from here rather than dashboard/ directly.
 dashboard/cache/
+/cache/

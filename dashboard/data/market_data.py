@@ -21,6 +21,22 @@ logger = logging.getLogger(__name__)
 _REQUEST_TIMEOUT = 10
 
 
+def _normalize_to_daily(series: pd.Series) -> pd.Series:
+    """Collapse to one row per calendar date, keeping the last value for
+    that day. Necessary because different symbols publish their "daily"
+    close at different times of day — futures markets close at a
+    different UTC hour than FX pairs, and Yahoo's own daily bars land at
+    yet another convention. Combining series on their raw timestamps
+    directly (as this function used to) creates a spurious interleaved
+    pattern once two differently-timed series are aligned: each one has
+    to forward-fill across the other's timestamps, injecting artificial
+    zero-return rows that silently dilute any correlation/beta computed
+    from the combined series by an order of magnitude or more."""
+    normalized = series.copy()
+    normalized.index = pd.to_datetime(normalized.index).normalize()
+    return normalized.groupby(level=0).last()
+
+
 def _fetch_pipeline_prices(tv_symbols: list[str], lookback_days: int) -> pd.DataFrame:
     """One batched call to the pipeline API for however many TradingView
     symbols are requested. Returns a DataFrame indexed by date with one
@@ -80,7 +96,7 @@ def fetch_prices(
     for tv_symbol in tv_pivot.columns:
         name = tv_symbol_to_name.get(tv_symbol)
         if name and tv_pivot[tv_symbol].notna().any():
-            result[name] = tv_pivot[tv_symbol].dropna()
+            result[name] = _normalize_to_daily(tv_pivot[tv_symbol].dropna())
 
     missing_names = [n for n in names_to_yahoo if n not in result]
     if missing_names:
@@ -94,7 +110,7 @@ def fetch_prices(
         for ticker in yahoo_df.columns:
             name = yahoo_ticker_to_name.get(ticker)
             if name:
-                result[name] = yahoo_df[ticker]
+                result[name] = _normalize_to_daily(yahoo_df[ticker])
 
     if not result:
         raise RuntimeError("No price data available from either the pipeline or Yahoo Finance.")
