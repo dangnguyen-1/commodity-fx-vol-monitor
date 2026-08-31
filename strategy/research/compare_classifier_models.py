@@ -159,9 +159,17 @@ def main() -> None:
 
     baseline_results = results[args.baseline]
 
+    baseline_with_impacts = sum(
+        1 for r in baseline_results if impact_set(r)
+    )
+    print(
+        f"\nBaseline found impacts on {baseline_with_impacts} of "
+        f"{len(baseline_results)} articles. Agreement is scored on those "
+        f"only."
+    )
     print(f"\n{'model':16} {'in/call':>8} {'out/call':>9} "
-          f"{'$/1k calls':>11} {'agree':>7} {'exact':>7} {'fails':>6}")
-    print("-" * 70)
+          f"{'$/1k calls':>11} {'agree':>7} {'exact':>7} {'impacts':>8} {'fails':>6}")
+    print("-" * 80)
 
     monthly_calls = 284 * 30
     for model in models:
@@ -177,32 +185,46 @@ def main() -> None:
             cost = "  unpriced"
             monthly = None
 
+        impacts_found = sum(
+            len(impact_set(r)) for r in results[model]
+        )
+
         if model == args.baseline:
             agree = exact = 100.0
         else:
+            # Scored only on articles where the baseline found something.
+            # Two empty results are trivially identical, so including them
+            # rewards a model for saying nothing -- which is exactly how a
+            # silent model can look accurate.
             overlaps = []
             exacts = 0
+            scored = 0
             for mine, theirs in zip(results[model], baseline_results):
                 a, b = impact_set(mine), impact_set(theirs)
+                if not b:
+                    continue
+                scored += 1
                 if a == b:
                     exacts += 1
                 union = a | b
-                overlaps.append(len(a & b) / len(union) if union else 1.0)
-            agree = 100.0 * sum(overlaps) / len(overlaps)
-            exact = 100.0 * exacts / len(baseline_results)
+                overlaps.append(len(a & b) / len(union))
+            agree = 100.0 * sum(overlaps) / len(overlaps) if overlaps else 0.0
+            exact = 100.0 * exacts / scored if scored else 0.0
 
         print(
             f"{model:16} {avg_in:8.0f} {avg_out:9.0f} {cost} "
-            f"{agree:6.1f}% {exact:6.1f}% {failures[model]:6}"
+            f"{agree:6.1f}% {exact:6.1f}% {impacts_found:7} {failures[model]:6}"
         )
         if monthly is not None:
             print(f"{'':16} projected monthly at 284 calls/day: ${monthly:,.2f}")
 
     print(
-        "\nagree = average overlap of (asset, direction) pairs against the "
-        "baseline.\nexact = share of articles where the two agreed "
-        "completely.\nSentiment magnitude is excluded: small numeric "
-        "differences do not change\nwhether a signal fires."
+        "\nagree   = overlap of (asset, direction) pairs, on articles where "
+        "the baseline\n          found impacts. Articles nobody flagged are "
+        "excluded, since two empty\n          answers agree trivially.\n"
+        "impacts = total pairs returned across the sample. A model well "
+        "below the\n          baseline is staying silent rather than "
+        "agreeing."
     )
 
 
