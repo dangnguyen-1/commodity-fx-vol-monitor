@@ -91,6 +91,7 @@ class Screen:
     n_days: int
     n_windows: int
     beta_full: float | None
+    beta_standardized: float | None
     r2_full: float | None
     beta_mean: float | None
     beta_sd: float | None
@@ -207,6 +208,16 @@ def screen_relationship(
         n_days=len(days),
         n_windows=len(betas),
         beta_full=None if full is None else round(full[0], 4),
+        # The strategy never compares raw returns -- both legs are divided by
+        # their own volatility first. Beta on standardized returns is just the
+        # correlation, and that is the number directly comparable to the
+        # spec's assumed +/-1 relationship_direction. Raw beta above is
+        # reported too, but it is in the wrong units for that comparison.
+        beta_standardized=(
+            None
+            if full is None
+            else round(math.copysign(math.sqrt(full[1]), full[0]), 4)
+        ),
         r2_full=None if full is None else round(full[1], 4),
         beta_mean=None if beta_mean is None else round(beta_mean, 4),
         beta_sd=None if beta_sd is None else round(beta_sd, 4),
@@ -279,7 +290,7 @@ def main() -> None:
         postgres.close()
 
     header = (
-        f"{'relationship':38} {'days':>5} {'win':>4} {'beta':>7} {'R2':>6} "
+        f"{'relationship':38} {'days':>5} {'win':>4} {'beta':>7} {'std_b':>7} {'R2':>6} "
         f"{'b_mean':>7} {'b_sd':>7} {'stab':>5} {'flip':>4} "
         f"{'%>gate':>6} {'medR2':>6} {'brk':>4}"
     )
@@ -302,7 +313,7 @@ def main() -> None:
 
         print(
             f"{row.relationship_id[:38]:38} {row.n_days:5} {row.n_windows:4} "
-            f"{fmt(row.beta_full,7)} {fmt(row.r2_full,6)} "
+            f"{fmt(row.beta_full,7)} {fmt(row.beta_standardized,7)} {fmt(row.r2_full,6)} "
             f"{fmt(row.beta_mean,7)} {fmt(row.beta_sd,7)} "
             f"{fmt(row.beta_stability,5,2)} {row.beta_sign_flips:4} "
             f"{fmt(row.pct_windows_above_r2,6,1)} "
