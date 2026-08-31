@@ -95,10 +95,21 @@ def standardize(values: dict[str, float]) -> dict[str, float]:
 
 
 def load_returns(cursor, symbol: str, timeframe: str) -> dict[str, float]:
+    """Log returns keyed so that two instruments actually align.
+
+    Daily bars are keyed by calendar date, not by timestamp. A commodity's
+    daily bar and an FX daily bar carry different times of day, so keying on
+    the full timestamp intersects to nothing. This is the same trap that
+    once diluted every correlation in this project by two orders of
+    magnitude, from a naive join on mismatched timestamps.
+    """
+    key_format = (
+        "YYYY-MM-DD" if timeframe == "1D" else "YYYY-MM-DD HH24:MI"
+    )
     cursor.execute(
-        """
+        f"""
         SELECT to_char(to_timestamp(timestamp) AT TIME ZONE 'UTC',
-                       'YYYY-MM-DD HH24:MI'),
+                       '{key_format}'),
                close
         FROM market_data
         WHERE symbol = %s AND timeframe = %s
