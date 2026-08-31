@@ -474,8 +474,161 @@ def render_system_status_expander(data: dict[str, Any]) -> None:
                     level = SERVICE_STATUS_LEVEL.get(svc.get("status"), "muted")
                     status_badge(f"{svc.get('service_name')}: {svc.get('status')}", level)
                     st.caption(f"heartbeat {format_age(age_seconds(svc.get('last_heartbeat_utc')))}")
+        st.divider()
+        render_orchestrator_panel(data)
         for err in data.get("errors", []):
             st.caption(f"⚠ {err}")
+
+
+def render_session_panel(data: dict[str, Any]) -> None:
+    """When each open position must be flat, and why.
+
+    The spec forbids overnight positions, and since v0.2.0 that is actually
+    enforced -- so "how long has this position got" is now a live constraint
+    rather than a footnote. Venues come from /relationships, which already
+    returns them, so this stays inside the rule that the dashboard reads the
+    API and never the database.
+    """
+    positions = [
+        p
+        for p in (data.get("positions") or [])
+        if str(p.get("status", "")).lower() == "open"
+    ]
+
+    try:
+        from paper_trading.sessions.session_calendar import (
+            SessionCalendar,
+            UnknownVenueError,
+        )
+
+        calendar = SessionCalendar()
+    except Exception as exc:  # noqa: BLE001
+        st.caption(f"Session calendar unavailable: {exc}")
+        return
+
+    venues = {
+        r.get("relationship_id"): (
+            r.get("commodity_venue"),
+            r.get("fx_venue"),
+        )
+        for r in (data.get("relationships") or [])
+    }
+
+    st.subheader(":material/schedule: Session Deadlines")
+    if not positions:
+        st.caption(
+            "No open positions. Zero positions is a valid state — "
+            "deadlines appear here once something is open."
+        )
+        return
+
+    now = utc_now()
+    rows = []
+    for position in positions:
+        relationship_id = position.get("relationship_id")
+        commodity_venue, fx_venue = venues.get(relationship_id, (None, None))
+        if not commodity_venue or not fx_venue:
+            continue
+        opened_at = parse_utc(position.get("opened_at_utc"))
+        if opened_at is None:
+            continue
+        try:
+            deadline = calendar.flat_deadline(
+                commodity_venue=commodity_venue,
+                fx_venue=fx_venue,
+                as_of=opened_at,
+            )
+        except UnknownVenueError:
+            continue
+        remaining = (deadline.deadline_utc - now).total_seconds() / 60.0
+        rows.append(
+            {
+                "relationship": relationship_id,
+                "must be flat by (UTC)": deadline.deadline_utc.strftime(
+                    "%Y-%m-%d %H:%M"
+                ),
+                "minutes left": round(remaining, 1),
+                "binding leg": deadline.binding_leg,
+                "commodity venue": commodity_venue,
+            }
+        )
+
+    if not rows:
+        st.caption("Open positions have no resolvable venue metadata.")
+        return
+
+    overdue = [r for r in rows if r["minutes left"] <= 0]
+    soon = [r for r in rows if 0 < r["minutes left"] <= 30]
+    if overdue:
+        st.error(
+            f"{len(overdue)} position(s) past the flat deadline. Execution "
+            "closes these on its next cycle; if that persists, check the "
+            "strategy-orchestrator process."
+        )
+    elif soon:
+        st.warning(f"{len(soon)} position(s) within 30 minutes of the deadline.")
+
+    st.dataframe(
+        pd.DataFrame(rows).sort_values("minutes left"),
+        width="stretch",
+        hide_index=True,
+    )
+
+
+def render_orchestrator_panel(data: dict[str, Any]) -> None:
+    """Per-stage health of the strategy loop.
+
+    The heartbeat carries which stages ran, how many times each has failed
+    and the last error. Without this the dashboard can only say the
+    orchestrator is alive, not whether it is doing anything -- which is the
+    distinction that mattered when the whole engine sat idle for six weeks.
+    """
+    health = data.get("health") or {}
+    orchestrator = next(
+        (
+            s
+            for s in health.get("services", [])
+            if s.get("service_name") == "strategy_orchestrator"
+        ),
+        None,
+    )
+    if orchestrator is None:
+        st.caption(
+            "No strategy_orchestrator heartbeat. The decision loop is not "
+            "running — data collection alone does not evaluate the strategy."
+        )
+        return
+
+    details = orchestrator.get("details_json") or {}
+    if isinstance(details, str):
+        import json
+
+        try:
+            details = json.loads(details)
+        except ValueError:
+            details = {}
+
+    stages = details.get("stages") or {}
+    st.caption(
+        f"cycle {details.get('cycles', '?')} · run `{details.get('run_id', '?')}` · "
+        f"signals every {details.get('signal_interval_minutes', '?')}m · "
+        f"execution every {details.get('execution_interval_minutes', '?')}m"
+    )
+    if not stages:
+        return
+
+    rows = [
+        {
+            "stage": name,
+            "last success (UTC)": (stage.get("last_success_utc") or "never")[:19],
+            "runs": stage.get("total_runs", 0),
+            "failures": stage.get("total_failures", 0),
+            "consecutive failures": stage.get("consecutive_failures", 0),
+            "last error": stage.get("last_error") or "",
+        }
+        for name, stage in sorted(stages.items())
+    ]
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
 
 
 def filter_by_currency(rows: list[dict], currency_filter: list[str]) -> list[dict]:
@@ -986,6 +1139,11 @@ def render_dashboard(
     )
     with tabs[0]:
         render_positions_tab(data, currency_filter)
+        # Deadlines belong with positions rather than in a tab of their own:
+        # the spec's Step 6 asks for five sections and this is information
+        # about the positions above, not a sixth subject.
+        st.divider()
+        render_session_panel(data)
     with tabs[1]:
         render_signals_tab(data, currency_filter)
     with tabs[2]:
