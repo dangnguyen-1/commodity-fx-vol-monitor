@@ -111,7 +111,7 @@ logger = logging.getLogger(__name__)
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.DARKLY],
-    title="Commodity Volatility Tracker",
+    title="Commodity FX Volatility Tracker",
     suppress_callback_exceptions=True,
 )
 
@@ -219,7 +219,7 @@ app.layout = dbc.Container(
                 dbc.Col(
                     [
                         html.Span(className="board-status-dot"),
-                        html.Span("Commodity Volatility Tracker", className="board-title"),
+                        html.Span("Commodity FX Volatility Tracker", className="board-title"),
                     ],
                     width="auto",
                     className="d-flex align-items-center",

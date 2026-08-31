@@ -1,5 +1,5 @@
 ---
-name: Commodity Volatility Tracker
+name: Commodity FX Volatility Tracker
 description: A departures board for commodities — live reranking, one amber accent, mono figures.
 colors:
   board-bg: "#12141a"
@@ -45,7 +45,7 @@ components:
     padding: "10px 12px"
 ---
 
-# Design System: Commodity Volatility Tracker
+# Design System: Commodity FX Volatility Tracker
 
 ## Overview
 
