@@ -1,8 +1,20 @@
-requests
-pandas
-python-dotenv
-psycopg2-binary
-feedparser
-beautifulsoup4
-googlenewsdecoder
-openai
+# Collector dependencies, pinned.
+#
+# These were unversioned until now, which meant a rebuild six months from
+# today would install whatever those libraries had become — the sort of drift
+# that surfaces as an unexplained behaviour change long after the fact rather
+# than as an obvious failure. Versions below are the ones actually verified
+# running: Python 3.11 locally and Python 3.14 on the deployment VM.
+#
+# Scope: direct dependencies only. Transitive ones are not locked, so a
+# rebuild can still pick up a newer sub-dependency. If that ever matters
+# enough, `uv pip compile` or pip-tools will produce a full lock from these
+# files; it is a real gap, not an oversight.
+requests==2.34.2
+pandas==2.3.3
+python-dotenv==1.2.3
+psycopg2-binary==2.9.12
+feedparser==6.0.14
+beautifulsoup4==4.15.0
+googlenewsdecoder==0.1.7
+openai==3.6.0
