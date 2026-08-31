@@ -197,7 +197,16 @@ def parse_evaluation_timestamp(
 def resolve_latest_evaluation_timestamp(
     connection: sqlite3.Connection,
     interval_minutes: int,
+    lag_minutes: int = 0,
 ) -> datetime:
+    """The newest timestamp worth evaluating.
+
+    Resolved from FX bar availability, then backed off by `lag_minutes`.
+    The back-off matters: FX bars sync continuously while commodity futures
+    arrive several minutes later, so evaluating at the newest FX timestamp
+    leaves the commodity endpoint stale beyond maximum_bar_lateness_seconds
+    and fails every commodity relationship's freshness check at once.
+    """
     row = connection.execute(
         """
         WITH active_fx AS (
@@ -247,7 +256,7 @@ def resolve_latest_evaluation_timestamp(
         )
 
     return floor_to_interval(
-        parse_utc_iso(row[0]),
+        parse_utc_iso(row[0]) - timedelta(minutes=lag_minutes),
         interval_minutes,
     )
 
@@ -1670,6 +1679,11 @@ def build_feature_snapshots(
             else resolve_latest_evaluation_timestamp(
                 connection,
                 interval_minutes,
+                lag_minutes=int(
+                    spec["data"]["market"].get(
+                        "evaluation_lag_minutes", 0
+                    )
+                ),
             )
         )
 

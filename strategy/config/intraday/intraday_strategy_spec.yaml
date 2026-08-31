@@ -15,7 +15,9 @@ strategy:
   # threshold_calibration_status. They were wrong for v0.2.0's scale and
   # this release moves the scale again, so they must be re-derived from
   # v0.3.0 features before Step 9 begins.
-  specification_version: "0.3.0"
+  # 0.3.1 adds data.market.evaluation_lag_minutes. A deployment fix rather
+  # than a rule change, per governance.versioning.
+  specification_version: "0.3.1"
   status: draft_for_local_replay
   parent_research_version: "v1.0.0"
   paper_trading_only: true
@@ -33,6 +35,22 @@ data:
 
     require_completed_bars: true
     maximum_bar_lateness_seconds: 90
+
+    # How far behind the newest available bar to evaluate.
+    #
+    # The evaluation timestamp is resolved from FX bar availability, but FX
+    # syncs continuously while commodity futures arrive a few minutes later
+    # through the collector -> Postgres -> SQLite path. Without a lag the
+    # engine picks a timestamp FX can support and the commodity endpoint is
+    # then stale beyond maximum_bar_lateness_seconds, so every commodity
+    # relationship fails the freshness check together. That is what kept
+    # market_data_complete at 0: coverage was 97% and every value present,
+    # but the current commodity bar had not landed yet.
+    #
+    # Five minutes is one evaluation interval, which keeps timestamps on the
+    # grid, and comfortably exceeds the ~3 minutes measured end to end for
+    # the sync path.
+    evaluation_lag_minutes: 5
     # Lowered from 95.0 in v0.3.0.
     #
     # Measured across five full trading days, 95% left sixteen of thirty
