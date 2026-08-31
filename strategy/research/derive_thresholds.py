@@ -71,6 +71,17 @@ def main() -> None:
     parser.add_argument("--spec", type=Path, default=DEFAULT_SPEC_PATH)
     parser.add_argument("--run-id", default=REPLAY_RUN_ID)
     parser.add_argument(
+        "--min-abs-beta",
+        type=float,
+        default=None,
+        help=(
+            "Restrict to relationships whose measured |beta| clears this. "
+            "A global threshold across relationships with very different "
+            "residual variances selects the wrong ones -- see the note "
+            "printed with the per-relationship medians."
+        ),
+    )
+    parser.add_argument(
         "--days-observed",
         type=float,
         required=True,
@@ -83,6 +94,19 @@ def main() -> None:
     max_positions = int(spec["risk"]["maximum_simultaneous_positions"])
 
     connection = sqlite3.connect(args.database)
+    keep: set[str] | None = None
+    if args.min_abs_beta is not None:
+        keep = {
+            str(row[0])
+            for row in connection.execute(
+                """
+                SELECT relationship_id FROM live_instrument_registry
+                WHERE transmission_beta IS NOT NULL
+                  AND ABS(transmission_beta) >= ?
+                """,
+                (args.min_abs_beta,),
+            )
+        }
     rows = connection.execute(
         """
         SELECT relationship_id, divergence_score
@@ -103,6 +127,8 @@ def main() -> None:
 
     by_relationship: dict[str, list[float]] = {}
     for relationship_id, divergence in rows:
+        if keep is not None and str(relationship_id) not in keep:
+            continue
         by_relationship.setdefault(str(relationship_id), []).append(
             abs(float(divergence))
         )
@@ -179,7 +205,15 @@ def main() -> None:
         "relationship is already in a position."
     )
 
-    print("\nPer-relationship |divergence| medians:")
+    print(
+        "\nPer-relationship |divergence| medians. Watch the ordering: "
+        "divergence is expected minus observed, so a relationship whose "
+        "beta is near zero contributes no expected term and its divergence "
+        "is simply the raw FX move -- which is larger, not smaller, than "
+        "for a relationship that explains part of it. A single global "
+        "threshold therefore selects hardest for the relationships that "
+        "transmit least."
+    )
     for relationship_id, values in sorted(
         by_relationship.items(), key=lambda kv: -statistics.median(kv[1])
     ):
