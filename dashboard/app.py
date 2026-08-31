@@ -379,6 +379,9 @@ RESEARCH_TABS = [
 ]
 
 TRADING_TABS = [
+    # Overview first: a reader arriving from a shared link needs the thesis
+    # before the numbers mean anything.
+    ("Overview", "overview"),
     ("Positions", "positions"),
     ("Signals", "signals"),
     ("Performance", "performance"),
@@ -422,6 +425,8 @@ def render_tab(active_tab, json_data):
         return flow_view.layout()
     if active_tab == "risk-news":
         return risk_view.layout()
+    if active_tab == "overview":
+        return strategy_view.overview_layout()
     if active_tab == "positions":
         return strategy_view.positions_layout()
     if active_tab == "signals":

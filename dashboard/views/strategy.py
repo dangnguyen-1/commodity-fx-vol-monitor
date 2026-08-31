@@ -470,3 +470,130 @@ def engine_layout() -> Any:
             ) if stage_rows else _empty("Strategy loop not running."),
         ),
     ])
+
+
+# ---------------------------------------------------------------------------
+# Overview
+# ---------------------------------------------------------------------------
+
+def _section(title: str, body: Any) -> Any:
+    return _panel(title, body)
+
+
+def _para(text: str) -> Any:
+    return html.P(
+        text,
+        style={"color": UI_TEXT, "fontSize": "0.88rem",
+               "lineHeight": "1.55", "marginBottom": "0.6rem"},
+    )
+
+
+def _bullets(items: list[str]) -> Any:
+    return html.Ul(
+        [html.Li(i, style={"color": UI_TEXT, "fontSize": "0.86rem",
+                           "lineHeight": "1.5", "marginBottom": "0.3rem"})
+         for i in items],
+        style={"paddingLeft": "1.1rem", "marginBottom": "0"},
+    )
+
+
+def overview_layout() -> Any:
+    """What the strategy is, how it is tested, and what the evidence says.
+
+    Written for a reader arriving cold. The status section states the
+    negative result plainly: a monitor that only reports favourable findings
+    is not a monitor.
+    """
+    return html.Div([
+        PAPER_BANNER,
+
+        _section("Thesis", html.Div([
+            _para(
+                "Commodity exporters' currencies should respond to the price "
+                "of what they export. When copper moves, the Australian "
+                "dollar has a reason to follow; when crude moves, the "
+                "Canadian dollar does."
+            ),
+            _para(
+                "The hypothesis under test is that this response is not "
+                "instant. If a commodity moves and its currency has not yet "
+                "followed, the gap between them may be tradeable over the "
+                "following minutes or hours."
+            ),
+            _para(
+                "The system tracks 30 commodity and currency relationships, "
+                "measures that gap every five minutes, and takes simulated "
+                "positions when it is wide enough."
+            ),
+        ])),
+
+        _section("How the signal is built", html.Div([
+            _bullets([
+                "Commodity returns over 15, 60 and 240 minutes, each divided "
+                "by the volatility of a move over that same horizon.",
+                "A transmission coefficient per relationship, measured from "
+                "historical data rather than assumed, giving the size of FX "
+                "move a commodity move should produce.",
+                "News sentiment from Reuters, MarketWatch and Investing.com, "
+                "classified by an LLM and decayed over four hours.",
+                "Divergence is the difference between the expected currency "
+                "move and the observed one.",
+            ]),
+            _para(""),
+            _para(
+                "Two entry modes run in parallel. Confirmed requires news "
+                "that agrees with the market move. Divergence requires no "
+                "news at all. They are measured separately because they are "
+                "different signals."
+            ),
+        ])),
+
+        _section("Status: discovery run", html.Div([
+            _para(
+                "This is not a validated strategy. It is a live experiment "
+                "with the measurement plan written before the run started."
+            ),
+            _para(
+                "The Divergence mode has evidence against it. Measured over "
+                "8,340 historical evaluations at a realistic fill, the "
+                "expected return was negative at every holding period tested "
+                "and worst among the largest signals, which is the "
+                "population the strategy is designed to trade. Against a "
+                "four basis point cost budget it was not close."
+            ),
+            _para(
+                "The Confirmed mode has never been tested. News history only "
+                "begins when this pipeline started collecting, so there is "
+                "nothing to backtest against. It can only be evaluated "
+                "forward, which is what this run is for."
+            ),
+        ])),
+
+        _section("Method", html.Div([
+            _bullets([
+                "Questions, metrics and decision rules fixed in writing "
+                "before the run began.",
+                "The final two weeks held out and scored once, with "
+                "parameters chosen without seeing them.",
+                "The specification is frozen for the duration. The engine "
+                "refuses to run if the file changes.",
+                "Entry timing models the 10 to 11 minute delay measured on "
+                "the exchange futures feed, because a fill at the signal "
+                "timestamp is not achievable.",
+                "Costs charged at four basis points round trip. An edge "
+                "smaller than its transaction cost is not an edge.",
+            ]),
+        ])),
+
+        _section("Infrastructure", html.Div([
+            _bullets([
+                "Live TradingView collection, UN Comtrade trade flows, and "
+                "an LLM news classifier, all under process supervision.",
+                "A read only API between the database and this dashboard.",
+                "Session calendars derived from observed trading hours, "
+                "enforcing no overnight positions.",
+                "Health monitoring with alerting, nightly verified backups, "
+                "and off box copies.",
+            ]),
+        ])),
+    ])
