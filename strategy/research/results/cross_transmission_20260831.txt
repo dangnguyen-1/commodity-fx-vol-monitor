@@ -1,0 +1,443 @@
+### DAILY (1D, 16 years)
+
+Commodity transmission, timeframe 1D
+25 FX instruments available
+
+
+Aluminum  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.235  0.0612   14.22         0.089     0.0262 <- current
+                   EURAUD            -0.186  0.0375  -10.98        -0.152     0.0252
+                   NZDUSD             0.184  0.0379   11.04         0.035     0.0043
+
+Brent Oil  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   USDCAD            -0.356  0.1283  -24.80        -0.249     0.1248 <- current
+                   CADJPY             0.330  0.1086   22.57         0.329     0.1057
+                   AUDJPY             0.287  0.0823   19.36         0.242     0.0635
+
+Cattle  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   USDCAD             0.043  0.0018    2.48         0.033     0.0023
+                   GBPCAD             0.038  0.0015    2.21         0.041     0.0017
+                   EURCAD             0.036  0.0013    2.09         0.039     0.0016
+                   AUDUSD            -0.011  0.0001   -0.60         0.001     0.0000 <- current
+
+Coal  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDUSD            -0.024  0.0006   -1.38        -0.009     0.0003
+                   USDCAD             0.023  0.0006    1.38         0.011     0.0003
+                   NZDJPY            -0.022  0.0005   -1.33        -0.016     0.0003
+                   AUDUSD            -0.016  0.0002   -0.92        -0.002     0.0000 <- current
+
+Cocoa  (currently trades GBPUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   EURNZD             0.030  0.0009    1.69         0.028     0.0008
+                   GBPNZD             0.025  0.0006    1.43         0.023     0.0006
+                   EURCAD             0.024  0.0006    1.40         0.026     0.0007
+                   GBPUSD             0.002  0.0000    0.10         0.007     0.0001 <- current
+
+Coffee  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPCAD            -0.015  0.0002   -0.84        -0.015     0.0002
+                   NZDCAD            -0.013  0.0002   -0.74        -0.015     0.0003
+                   USDCAD            -0.013  0.0002   -0.72        -0.009     0.0002
+
+Copper  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.424  0.1791   30.23         0.142     0.0543 <- current
+                   USDCAD            -0.364  0.1328  -25.34        -0.119     0.0254
+                   NZDUSD             0.359  0.1290   24.92         0.067     0.0123
+
+Corn  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDCAD             0.026  0.0006    1.47         0.019     0.0004
+                   AUDUSD             0.023  0.0005    1.30         0.010     0.0003
+                   NZDUSD             0.019  0.0004    1.10         0.006     0.0001
+
+Cotton  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDJPY             0.079  0.0064    4.65         0.071     0.0058
+                   CADJPY             0.077  0.0059    4.45         0.076     0.0058
+                   USDCAD            -0.065  0.0043   -3.81        -0.047     0.0046
+                   EURUSD             0.018  0.0003    1.04        -0.003     0.0000 <- current
+
+Crude Oil  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   USDCAD            -0.329  0.1084  -22.57        -0.226     0.1027 <- current
+                   CADJPY             0.304  0.0921   20.62         0.301     0.0889
+                   AUDJPY             0.261  0.0678   17.45         0.217     0.0510
+
+Gasoline  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   USDCAD            -0.307  0.0948  -20.95        -0.208     0.0876 <- current
+                   CADJPY             0.270  0.0725   18.10         0.266     0.0695
+                   AUDJPY             0.235  0.0551   15.63         0.192     0.0402
+
+Gold  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDUSD             0.315  0.0993   21.49         0.004     0.0001
+                   AUDUSD             0.312  0.0971   21.23         0.001     0.0000 <- current
+                   USDCHF            -0.295  0.0902  -20.39        -0.048     0.0039
+
+Heating Oil  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   USDCAD            -0.317  0.1009  -21.68        -0.220     0.0980 <- current
+                   CADJPY             0.297  0.0879   20.10         0.294     0.0848
+                   AUDJPY             0.259  0.0668   17.32         0.217     0.0515
+
+Iron Ore  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.092  0.0076    4.40         0.041     0.0049 <- current
+                   AUDJPY             0.080  0.0067    4.11         0.065     0.0047
+                   EURAUD            -0.079  0.0058   -3.84        -0.066     0.0042
+
+LNG  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPAUD             0.088  0.0152    2.58         0.078     0.0125
+                   AUDUSD            -0.079  0.0088   -1.95        -0.033     0.0042 <- current
+                   AUDCAD            -0.079  0.0079   -1.85        -0.047     0.0039
+
+Lithium  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPCAD             0.053  0.0029    3.06         0.048     0.0025
+                   AUDCAD             0.049  0.0024    2.79         0.036     0.0016
+                   CADJPY            -0.049  0.0027   -2.95        -0.049     0.0027
+                   AUDUSD             0.023  0.0006    1.35        -0.000     0.0000 <- current
+
+Lithium Hydroxide  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   USDJPY            -0.039  0.0014   -1.35        -0.026     0.0011
+                   CADJPY            -0.032  0.0013   -1.34        -0.029     0.0012
+                   EURJPY            -0.026  0.0009   -1.09        -0.026     0.0009
+                   AUDUSD             0.016  0.0003    0.61         0.000     0.0000 <- current
+
+Lumber  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPCAD             0.066  0.0073    2.44         0.048     0.0047
+                   GBPUSD             0.065  0.0048    1.98         0.019     0.0017
+                   EURCAD             0.064  0.0082    2.58         0.050     0.0057
+                   USDCAD            -0.003  0.0000   -0.10         0.031     0.0042 <- current
+
+Natural Gas  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   CADJPY             0.072  0.0052    4.68         0.070     0.0049
+                   AUDJPY             0.066  0.0043    4.26         0.054     0.0033
+                   GBPJPY             0.063  0.0040    4.09         0.057     0.0033
+                   USDCAD            -0.062  0.0038   -4.00        -0.036     0.0026 <- current
+
+Nickel  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.256  0.0820    5.68         0.107     0.0392 <- current
+                   AUDCAD             0.248  0.0704    5.23         0.153     0.0345
+                   NZDUSD             0.201  0.0506    4.39         0.035     0.0065
+
+Palladium  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.337  0.1129   23.10         0.101     0.0288
+                   USDCAD            -0.288  0.0831  -19.49        -0.083     0.0130
+                   NZDUSD             0.280  0.0781   18.85         0.038     0.0042
+                   EURUSD             0.196  0.0384   12.94        -0.051     0.0071 <- current
+
+Platinum  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.380  0.1441   26.56         0.091     0.0224
+                   NZDUSD             0.339  0.1146   23.29         0.043     0.0051
+                   USDCAD            -0.309  0.0957  -21.06        -0.056     0.0055
+                   EURUSD             0.250  0.0624   16.70        -0.056     0.0081 <- current
+
+Silver  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.350  0.1217   24.09         0.063     0.0107
+                   NZDUSD             0.324  0.1052   22.19         0.034     0.0032
+                   USDCAD            -0.286  0.0818  -19.33        -0.035     0.0022
+                   EURUSD             0.252  0.0634   16.85        -0.046     0.0055 <- current
+
+Soybeans  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDCAD             0.034  0.0011    1.94         0.026     0.0008
+                   NZDUSD             0.030  0.0009    1.70         0.015     0.0007
+                   AUDCAD             0.027  0.0007    1.53         0.019     0.0004
+
+Sugar  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDNZD             0.025  0.0006    1.36         0.025     0.0006
+                   EURGBP            -0.023  0.0005   -1.28        -0.023     0.0005
+                   EURAUD            -0.020  0.0004   -1.14        -0.021     0.0004
+
+Wheat  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDCAD             0.045  0.0019    2.54         0.046     0.0025
+                   AUDCAD             0.038  0.0014    2.15         0.039     0.0018
+                   GBPCHF             0.031  0.0009    1.73         0.031     0.0009
+                   EURUSD            -0.002  0.0000   -0.09         0.000     0.0000 <- current
+
+Zinc  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDUSD             0.174  0.0386    3.81         0.086     0.0268 <- current
+                   AUDCAD             0.162  0.0310    3.40         0.105     0.0173
+                   NZDUSD             0.133  0.0228    2.90         0.037     0.0077
+
+==============================================================================
+T3: best instrument per commodity, against what it trades today
+
+commodity          best             R2   current          R2      gain  ex-USD R2
+------------------------------------------------------------------------------
+Copper             AUDUSD       0.1791   AUDUSD       0.1791   +0.0000     0.0543
+Platinum           AUDUSD       0.1441   EURUSD       0.0624   +0.0817     0.0224
+Brent Oil          USDCAD       0.1283   USDCAD       0.1283   +0.0000     0.1248
+Silver             AUDUSD       0.1217   EURUSD       0.0634   +0.0582     0.0107
+Palladium          AUDUSD       0.1129   EURUSD       0.0384   +0.0745     0.0288
+Crude Oil          USDCAD       0.1084   USDCAD       0.1084   +0.0000     0.1027
+Heating Oil        USDCAD       0.1009   USDCAD       0.1009   +0.0000     0.0980
+Gold               NZDUSD       0.0993   AUDUSD       0.0971   +0.0022     0.0001
+Gasoline           USDCAD       0.0948   USDCAD       0.0948   +0.0000     0.0876
+Nickel             AUDUSD       0.0820   AUDUSD       0.0820   +0.0000     0.0392
+Aluminum           AUDUSD       0.0612   AUDUSD       0.0612   +0.0000     0.0262
+Zinc               AUDUSD       0.0386   AUDUSD       0.0386   +0.0000     0.0268
+LNG                GBPAUD       0.0152   AUDUSD       0.0088   +0.0064     0.0125
+Iron Ore           AUDUSD       0.0076   AUDUSD       0.0076   +0.0000     0.0049
+Lumber             GBPCAD       0.0073   USDCAD       0.0000   +0.0073     0.0047
+Cotton             AUDJPY       0.0064   EURUSD       0.0003   +0.0061     0.0058
+Natural Gas        CADJPY       0.0052   USDCAD       0.0038   +0.0014     0.0049
+Lithium            GBPCAD       0.0029   AUDUSD       0.0006   +0.0023     0.0025
+Wheat              NZDCAD       0.0019   EURUSD       0.0000   +0.0019     0.0025
+Cattle             USDCAD       0.0018   AUDUSD       0.0001   +0.0017     0.0023
+Lithium Hydroxide  USDJPY       0.0014   AUDUSD       0.0003   +0.0011     0.0011
+Soybeans           NZDCAD       0.0011   BRLUSD            -          -     0.0008
+Cocoa              EURNZD       0.0009   GBPUSD       0.0000   +0.0009     0.0008
+Corn               AUDCAD       0.0006   BRLUSD            -          -     0.0004
+Coal               NZDUSD       0.0006   AUDUSD       0.0002   +0.0003     0.0003
+Sugar              AUDNZD       0.0006   BRLUSD            -          -     0.0006
+Coffee             GBPCAD       0.0002   BRLUSD            -          -     0.0002
+
+median R2 gain from switching instrument: +0.0011
+
+beta/R2 ex-USD strips the common dollar move from both legs. A relationship that
+survives it is commodity-specific; one that collapses was the dollar.
+
+### INTRADAY (1m)
+
+Commodity transmission, timeframe 1
+25 FX instruments available
+
+
+Brent Oil  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDCAD            -0.293  0.0691   -8.39        -0.183     0.0371
+                   EURCAD            -0.240  0.0397   -6.27        -0.187     0.0248
+                   NZDUSD            -0.230  0.0395   -6.25        -0.040     0.0046
+                   USDCAD             0.047  0.0054    6.09        -0.067     0.0306 <- current
+
+Cattle  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   CHFJPY            -0.183  0.0088   -1.56        -0.146     0.0071
+                   GBPCHF             0.163  0.0094    1.61         0.158     0.0090
+                   CADJPY            -0.155  0.0075   -1.44        -0.146     0.0068
+                   AUDUSD             0.016  0.0005    0.89         0.010     0.0007 <- current
+
+Cocoa  (currently trades GBPUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDJPY             0.192  0.0106    1.95         0.196     0.0140
+                   GBPAUD            -0.176  0.0091   -1.81        -0.177     0.0091
+                   AUDCAD             0.138  0.0050    1.34         0.141     0.0062
+                   GBPUSD             0.035  0.0005    1.25         0.013     0.0005 <- current
+
+Coffee  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   AUDNZD             0.200  0.0256    3.03         0.193     0.0247
+                   CHFJPY            -0.167  0.0094   -1.82        -0.142     0.0090
+                   NZDJPY            -0.158  0.0116   -2.02        -0.134     0.0120
+
+Copper  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   EURUSD             0.861  0.6690  123.20         0.028     0.0042
+                   AUDCAD             0.584  0.0879   10.50         0.390     0.0446
+                   NZDUSD             0.571  0.0801   10.00         0.121     0.0130
+                   AUDUSD             0.366  0.2196   45.97         0.113     0.0787 <- current
+
+Corn  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPCAD            -0.278  0.0063   -2.45        -0.291     0.0085
+                   EURGBP             0.209  0.0040    1.94         0.214     0.0043
+                   GBPAUD            -0.195  0.0031   -1.71        -0.197     0.0032
+
+Cotton  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   CADJPY             0.191  0.0054    2.22         0.190     0.0053
+                   AUDJPY             0.181  0.0046    2.06         0.185     0.0054
+                   GBPAUD            -0.119  0.0026   -1.53        -0.120     0.0027
+                   EURUSD             0.072  0.0016    2.93        -0.003     0.0000 <- current
+
+Crude Oil  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDCAD            -0.319  0.0749   -9.84        -0.203     0.0425
+                   EURCAD            -0.270  0.0473   -7.72        -0.219     0.0320
+                   GBPCAD            -0.250  0.0411   -7.17        -0.164     0.0202
+                   USDCAD             0.045  0.0018    3.82        -0.085     0.0490 <- current
+
+Gasoline  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   EURUSD            -0.546  0.2270  -42.71        -0.031     0.0121
+                   NZDCAD            -0.357  0.0431   -6.85        -0.261     0.0326
+                   GBPCAD            -0.280  0.0213   -4.77        -0.203     0.0131
+                   USDCAD             0.023  0.0010    2.50        -0.067     0.0230 <- current
+
+Gold  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDUSD             1.374  0.1566   14.92         0.171     0.0079
+                   GBPUSD             1.296  0.2398   50.51        -0.012     0.0001
+                   AUDCAD             1.170  0.1183   12.67         0.698     0.0426
+                   AUDUSD             0.753  0.3537   66.50         0.212     0.0872 <- current
+
+Heating Oil  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   EURUSD             0.549  0.2296   42.97         0.002     0.0000
+                   NZDCAD            -0.390  0.0542   -7.50        -0.243     0.0287
+                   CADJPY             0.374  0.0419    6.56         0.377     0.0413
+                   USDCAD             0.065  0.0057    5.94        -0.062     0.0145 <- current
+
+Iron Ore  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   EURCHF            -0.087  0.0032   -1.25        -0.086     0.0034
+                   GBPAUD            -0.060  0.0019   -0.96        -0.059     0.0019
+                   GBPJPY            -0.050  0.0011   -0.74        -0.051     0.0012
+                   AUDUSD             0.023  0.0011    1.22         0.005     0.0003 <- current
+
+Lithium  (currently trades AUDUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPUSD             0.039  0.0021    1.08         0.004     0.0002
+                   USDCAD            -0.027  0.0020   -1.05        -0.005     0.0002
+                   AUDUSD             0.018  0.0027    1.22         0.004     0.0007 <- current
+
+Lumber  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPUSD            -0.044  0.0014   -0.84        -0.023     0.0021
+                   EURUSD            -0.017  0.0005   -0.51        -0.004     0.0001
+                   AUDUSD             0.017  0.0012    0.79         0.025     0.0117
+                   USDCAD             0.000  0.0000    0.00        -0.015     0.0008 <- current
+
+Natural Gas  (currently trades USDCAD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   EURUSD            -0.186  0.0295  -14.98        -0.012     0.0022
+                   GBPNZD             0.075  0.0058    2.58         0.074     0.0057
+                   EURGBP            -0.068  0.0053   -2.46        -0.069     0.0056
+                   USDCAD            -0.004  0.0000   -0.52        -0.022     0.0032 <- current
+
+Palladium  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPUSD             0.395  0.0632   15.42        -0.006     0.0001
+                   EURUSD             0.284  0.0681   16.05         0.005     0.0002 <- current
+                   AUDUSD             0.229  0.0922   18.91         0.043     0.0177
+
+Platinum  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   EURUSD             0.920  0.7065  129.00         0.037     0.0063 <- current
+                   NZDUSD             0.839  0.0970   10.75         0.173     0.0148
+                   AUDCAD             0.758  0.0821    9.80         0.469     0.0350
+
+Silver  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   NZDUSD             1.167  0.1217   12.74         0.181     0.0100
+                   AUDCAD             1.122  0.1178   12.49         0.726     0.0527
+                   NZDCAD             0.943  0.0858   10.47         0.359     0.0158
+                   EURUSD             0.900  0.7502  152.28         0.059     0.0147 <- current
+
+Soybeans  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPCAD            -0.196  0.0101   -3.11        -0.238     0.0181
+                   GBPAUD            -0.182  0.0085   -2.84        -0.187     0.0090
+                   CADJPY             0.174  0.0080    2.75         0.176     0.0081
+
+Sugar  (currently trades BRLUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPCHF            -0.087  0.0020   -0.81        -0.090     0.0022
+                   EURCHF            -0.078  0.0012   -0.63        -0.088     0.0018
+                   EURGBP             0.077  0.0010    0.56         0.068     0.0008
+
+Wheat  (currently trades EURUSD)
+commodity          instrument          beta      R2       t   beta ex-USD  R2 ex-USD
+------------------------------------------------------------------------------------
+                   GBPCAD            -0.165  0.0094   -3.00        -0.155     0.0100
+                   GBPAUD            -0.135  0.0062   -2.44        -0.134     0.0061
+                   EURGBP             0.128  0.0062    2.45         0.124     0.0060
+                   EURUSD            -0.022  0.0003   -1.38        -0.011     0.0005 <- current
+
+==============================================================================
+T3: best instrument per commodity, against what it trades today
+
+commodity          best             R2   current          R2      gain  ex-USD R2
+------------------------------------------------------------------------------
+Platinum           EURUSD       0.7065   EURUSD       0.7065   +0.0000     0.0063
+Copper             EURUSD       0.6690   AUDUSD       0.2196   +0.4494     0.0042
+Heating Oil        EURUSD       0.2296   USDCAD       0.0057   +0.2240     0.0000
+Gasoline           EURUSD       0.2270   USDCAD       0.0010   +0.2260     0.0121
+Gold               NZDUSD       0.1566   AUDUSD       0.3537   -0.1971     0.0079
+Silver             NZDUSD       0.1217   EURUSD       0.7502   -0.6285     0.0100
+Crude Oil          NZDCAD       0.0749   USDCAD       0.0018   +0.0731     0.0425
+Brent Oil          NZDCAD       0.0691   USDCAD       0.0054   +0.0637     0.0371
+Palladium          GBPUSD       0.0632   EURUSD       0.0681   -0.0049     0.0001
+Natural Gas        EURUSD       0.0295   USDCAD       0.0000   +0.0295     0.0022
+Coffee             AUDNZD       0.0256   BRLUSD            -          -     0.0247
+Cocoa              AUDJPY       0.0106   GBPUSD       0.0005   +0.0100     0.0140
+Soybeans           GBPCAD       0.0101   BRLUSD            -          -     0.0181
+Wheat              GBPCAD       0.0094   EURUSD       0.0003   +0.0090     0.0100
+Cattle             CHFJPY       0.0088   AUDUSD       0.0005   +0.0083     0.0071
+Corn               GBPCAD       0.0063   BRLUSD            -          -     0.0085
+Cotton             CADJPY       0.0054   EURUSD       0.0016   +0.0037     0.0053
+Iron Ore           EURCHF       0.0032   AUDUSD       0.0011   +0.0021     0.0034
+Lithium            GBPUSD       0.0021   AUDUSD       0.0027   -0.0006     0.0002
+Sugar              GBPCHF       0.0020   BRLUSD            -          -     0.0022
+Lumber             GBPUSD       0.0014   USDCAD       0.0000   +0.0014     0.0021
+
+median R2 gain from switching instrument: +0.0083
+
+beta/R2 ex-USD strips the common dollar move from both legs. A relationship that
+survives it is commodity-specific; one that collapses was the dollar.

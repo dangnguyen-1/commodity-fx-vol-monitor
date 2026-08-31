@@ -158,3 +158,100 @@ The responsible next step is more evidence: re-run `divergence_edge.py` once
 the live pipeline has produced a larger sample, with news flowing so
 Confirmed mode can finally be evaluated. Both depend on `feature_engine`
 reaching healthy — no complete features, no new evidence.
+
+
+---
+
+# Cross transmission and the dollar factor, 31 August 2026
+
+Output in `cross_transmission_20260831.txt`.
+
+## Why this was run
+
+All thirty relationships trade through five instruments, and every one is a
+USD pair: AUDUSD, USDCAD, EURUSD, BRLUSD, GBPUSD. So every position is
+partly a dollar position whether or not the signal said anything about the
+dollar.
+
+The suspicion was sharper than that. Gold transmits to EUR at 0.544 on
+intraday data, and Europe exports no gold. Gold is priced in USD, so gold up
+is partly USD down, which lifts every USD pair. If that is the bulk of the
+measured effect, the strategy has been trading a lagged dollar view.
+
+## The finding: intraday, it is almost entirely the dollar
+
+| commodity | best instrument | R² | R² ex-dollar | survives |
+|---|---|---|---|---|
+| Silver | EURUSD | 0.7502 | **0.0100** | 1.3% |
+| Platinum | EURUSD | 0.7065 | **0.0064** | 0.9% |
+| Copper | EURUSD | 0.6690 | **0.0043** | 0.6% |
+| Gold | AUDUSD | 0.3537 | **0.0079** | 2.2% |
+| Heating Oil | EURUSD | 0.2296 | **0.0000** | 0% |
+
+Removing the common cross-sectional dollar move destroys 90 to 99% of the
+relationship at intraday horizons.
+
+This is the cleanest available explanation for the negative edge measured on
+the same day. The strategy was trading a **dollar signal delayed 10 to 11
+minutes** by the futures feed, against instruments that price the dollar
+instantly. Not commodity-currency transmission at all.
+
+It also means the `transmission_beta` values loaded in v0.3.0 are largely
+dollar betas. They do not measure what they were introduced to measure.
+
+## The exception: oil against a cross
+
+| | R² | R² ex-dollar | survives |
+|---|---|---|---|
+| Crude Oil → NZDCAD | 0.0749 | **0.0425** | 57% |
+| Brent Oil → NZDCAD | 0.0691 | **0.0371** | 54% |
+| Crude Oil → USDCAD *(current)* | 0.0018 | — | — |
+
+A cross, and exactly the structure proposed: CAD carries a real oil
+relationship, NZD is another commodity currency without one, so pairing them
+isolates oil exposure and cancels the dollar.
+
+The daily sample agrees on the mechanism. Over sixteen years the oil complex
+against CAD retains 92 to 97% of its relationship after the dollar is
+stripped, the only group that does:
+
+| commodity | R² | R² ex-dollar | survives |
+|---|---|---|---|
+| Brent Oil | 0.1283 | 0.1248 | 97% |
+| Heating Oil | 0.1009 | 0.0980 | 97% |
+| Crude Oil | 0.1084 | 0.1027 | 95% |
+| Gasoline | 0.0948 | 0.0876 | 92% |
+| Gold | 0.0993 | **0.0001** | 0.1% |
+
+Oil to CAD is economically real but slow. Gold to AUD is fast but
+mechanical. The two frequencies disagreed about which relationships matter
+because they were measuring different things.
+
+## What is not yet established
+
+**Crosses have two days of intraday history.** They began collecting on 28
+August:
+
+```
+USD pairs   7 symbols   12 Jul - 31 Aug   8 days
+crosses    18 symbols   28 Aug - 31 Aug   2 days
+```
+
+So the NZDCAD result rests on two days in one regime. Every previous
+decision taken on a sample that thin in this project has been wrong, most
+recently the daily screen ranking oil/CAD among the best relationships when
+intraday said it was noise.
+
+On the daily sample, no cross beat a USD pair for any commodity that
+matters, and the median R² gain from switching instrument was +0.0011.
+
+## What this justifies
+
+**Solid, at both frequencies and on sixteen years:** the metals
+relationships are dollar artifacts. That needs no more data.
+
+**Not yet solid:** that trading oil through a cross fixes it. Two days is
+not a basis for rebuilding the strategy.
+
+The plan is to let the crosses collect for two to three weeks and re-run
+this. Nothing needs building; they are already streaming.
