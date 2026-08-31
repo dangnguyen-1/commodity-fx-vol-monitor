@@ -116,6 +116,20 @@ module.exports = {
       max_restarts: 20,
     },
     {
+      // Checks that everything above is actually working and notifies when
+      // it is not (see paper_trading/monitoring/health_watchdog.py). Every
+      // serious failure this project has had was silent — the Comtrade
+      // loader reporting success while committing nothing for six weeks,
+      // three separate jobs that were never scheduled — so this is the
+      // process whose whole job is to notice. Exits non-zero while
+      // something is wrong; that is the pipeline failing, not this.
+      name: "health-watchdog",
+      script: "scripts/health_watchdog.sh",
+      interpreter: "bash",
+      autorestart: false,
+      cron_restart: "*/5 * * * *",
+    },
+    {
       // Nightly pg_dump with rotation (see scripts/backup_database.sh).
       // The market data is not reproducible — TradingView only serves a
       // week or two of 1-minute history, so everything older than that

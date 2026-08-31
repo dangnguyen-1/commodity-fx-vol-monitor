@@ -28,3 +28,6 @@ dashboard/cache/
 # source. Keep them out of git.
 backups/
 *.dump
+
+# Watchdog notification state - which problems have already been reported.
+paper_trading/data/watchdog_state.json
