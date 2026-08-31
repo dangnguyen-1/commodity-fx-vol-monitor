@@ -1,14 +1,18 @@
 #!/bin/bash
-# Monthly nudge to check the Hetzner invoice.
+# Recurring nudges for the two costs that can stop this system.
 #
-# A failed card takes the whole system down: collectors, dashboard, the run
-# and its data. Unlike every other failure mode here, the watchdog cannot see
-# it coming, because a suspended account looks like an unreachable host and
-# by then it is already too late.
+#   ./scripts/billing_reminder.sh hetzner   monthly, the 29th
+#   ./scripts/billing_reminder.sh openai    weekly, Sunday
 #
-# Fires on the 29th via pm2's cron_restart. It sends a reminder rather than
-# checking a balance, because Hetzner exposes no billing API for this and a
-# fake check would be worse than an honest one.
+# Both send a reminder rather than reading a balance. Hetzner exposes no
+# billing API, and OpenAI's balance endpoint is not available on current
+# accounts, so a "check" would be a fabrication. The watchdog does track
+# OpenAI spend from logged token usage; this is the human-facing backstop.
+#
+# Scheduled from the user crontab rather than pm2, because cron honours
+# CRON_TZ and pm2 does not. These fire at 21:00 America/New_York, which is a
+# different UTC hour in summer and winter; anchoring to the local time is the
+# point.
 set -u
 cd "$(dirname "$0")/.."
 
@@ -17,18 +21,35 @@ set -a
 . ./.env
 set +a
 
-URL="${ALERT_WEBHOOK_URL:-}"
-MESSAGE="*commodities pipeline*
+KIND="${1:-hetzner}"
+
+case "$KIND" in
+  hetzner)
+    MESSAGE="*commodities pipeline*
 [REMINDER] Hetzner billing check.
 
 The VM carries the collectors, the dashboard and the live paper-trading run.
 A lapsed payment stops all of it and ends the run's data with it.
 
-  console.hetzner.com -> your project -> Billing
+  console.hetzner.com -> your project -> Billing"
+    ;;
+  openai)
+    MESSAGE="*commodities pipeline*
+[REMINDER] OpenAI credit check.
 
-Also worth a glance while you are there: OpenAI credit, at roughly 500 news
-classifications a day."
+News classification runs at roughly 500 articles a day. If credit runs out
+it stops silently, and Confirmed-mode signals stop with it -- which is the
+one thing the discovery run exists to test.
 
+  platform.openai.com -> Settings -> Billing"
+    ;;
+  *)
+    echo "Unknown reminder: $KIND (expected 'hetzner' or 'openai')"
+    exit 2
+    ;;
+esac
+
+URL="${ALERT_WEBHOOK_URL:-}"
 if [ -z "$URL" ]; then
   echo "ALERT_WEBHOOK_URL is not set; printing instead."
   echo "$MESSAGE"
@@ -44,13 +65,12 @@ print(json.dumps({"text": message, "content": message}))
 PY
 )
 
-# Discord sits behind Cloudflare, which rejects urllib/curl defaults with a
-# 403 unless a real User-Agent is sent.
+# Discord sits behind Cloudflare, which rejects default agents with a 403.
 if curl -sS -X POST -H 'Content-Type: application/json' \
-     -A 'commodities-billing-reminder/1.0' \
+     -A 'commodities-reminder/1.0' \
      -d "$payload" "$URL" >/dev/null; then
-  echo "billing reminder sent"
+  echo "$KIND reminder sent"
 else
-  echo "billing reminder FAILED to send"
+  echo "$KIND reminder FAILED to send"
   exit 1
 fi

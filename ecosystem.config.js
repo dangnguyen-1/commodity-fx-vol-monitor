@@ -130,17 +130,6 @@ module.exports = {
       cron_restart: "*/5 * * * *",
     },
     {
-      // Monthly nudge to check the Hetzner invoice, on the 29th. A lapsed
-      // payment takes down the collectors, the dashboard and the live run,
-      // and it is the one failure the watchdog cannot see coming: by the
-      // time the host is unreachable it is already too late.
-      name: "billing-reminder",
-      script: "scripts/billing_reminder.sh",
-      interpreter: "bash",
-      autorestart: false,
-      cron_restart: "0 9 29 * *",
-    },
-    {
       // Nightly pg_dump with rotation (see scripts/backup_database.sh).
       // The market data is not reproducible — TradingView only serves a
       // week or two of 1-minute history, so everything older than that
