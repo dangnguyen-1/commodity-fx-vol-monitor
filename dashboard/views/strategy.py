@@ -13,8 +13,19 @@ that drive session deadlines.
 
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
+
+# pm2 runs this app as `python3 dashboard/app.py`, so sys.path[0] is the
+# dashboard directory and the repository root is not importable. That is why
+# `from config import ...` works here while `import paper_trading...` does
+# not. Adding the root explicitly keeps the API client reachable without
+# depending on PYTHONPATH being set by whatever launched the process.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 import dash_bootstrap_components as dbc
 import plotly.graph_objects as go
