@@ -289,11 +289,17 @@ class Orchestrator:
             for name, stage in self.stages.items()
             if stage.consecutive_failures > 0
         ]
-        # Execution failing is what makes the loop unhealthy rather than
-        # merely degraded: without it, nothing exits and nothing is forced
-        # flat at the session deadline.
+        # Execution failing is what makes the loop failed rather than merely
+        # degraded: without it, nothing exits and nothing is forced flat at
+        # the session deadline.
+        #
+        # "failed" rather than "unhealthy" because service_heartbeats has a
+        # CHECK constraint listing the permitted values, and "unhealthy" is
+        # not among them. Writing it raised, so the heartbeat was silently
+        # dropped at precisely the moment the loop was in trouble -- the one
+        # moment it most needs to be visible.
         if self.stages["execution"].consecutive_failures > 0:
-            status = "unhealthy"
+            status = "failed"
         elif failing:
             status = "degraded"
         else:
