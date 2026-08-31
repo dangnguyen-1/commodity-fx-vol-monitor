@@ -15,9 +15,10 @@ strategy:
   # threshold_calibration_status. They were wrong for v0.2.0's scale and
   # this release moves the scale again, so they must be re-derived from
   # v0.3.0 features before Step 9 begins.
-  # 0.3.1 adds data.market.evaluation_lag_minutes. A deployment fix rather
-  # than a rule change, per governance.versioning.
-  specification_version: "0.3.1"
+  # 0.3.2 raises evaluation_lag_minutes to 15 after measuring the futures
+  # feed delay at 10-11 minutes. A deployment fix rather than a rule change,
+  # per governance.versioning.
+  specification_version: "0.3.2"
   status: draft_for_local_replay
   parent_research_version: "v1.0.0"
   paper_trading_only: true
@@ -47,10 +48,22 @@ data:
     # market_data_complete at 0: coverage was 97% and every value present,
     # but the current commodity bar had not landed yet.
     #
-    # Five minutes is one evaluation interval, which keeps timestamps on the
-    # grid, and comfortably exceeds the ~3 minutes measured end to end for
-    # the sync path.
-    evaluation_lag_minutes: 5
+    # Raised from 5 to 15 in v0.3.2 after measuring the actual delay rather
+    # than assuming it. Across three hours of receipts, every exchange-traded
+    # futures venue arrives 10.0-11.2 minutes after the bar it describes --
+    # CBOT 11.0, COMEX 10.9, NYMEX 10.9, ICEUS 10.9, CME 10.8 -- with almost
+    # no variance. FX arrives in 1.0 minutes. That is not jitter or a sync
+    # problem: it is a delayed market-data entitlement, which is what
+    # TradingView serves for exchange futures without a per-exchange
+    # subscription. FX is OTC and comes in real time.
+    #
+    # 15 minutes clears the worst observed delay with margin and stays on the
+    # 5-minute grid. Note what this does and does not fix: features will now
+    # complete, because both legs have arrived by the time they are
+    # evaluated. It does nothing about the fact that a divergence computed
+    # for time T cannot be acted on until roughly T+11, which is a property
+    # of the data entitlement and not of this setting.
+    evaluation_lag_minutes: 15
     # Lowered from 95.0 in v0.3.0.
     #
     # Measured across five full trading days, 95% left sixteen of thirty

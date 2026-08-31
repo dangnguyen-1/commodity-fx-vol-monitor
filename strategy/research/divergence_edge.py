@@ -105,6 +105,19 @@ def main() -> None:
     parser.add_argument("--spec", type=Path, default=DEFAULT_SPEC_PATH)
     parser.add_argument("--run-id", default=REPLAY_RUN_ID)
     parser.add_argument("--min-abs-beta", type=float, default=None)
+    parser.add_argument(
+        "--entry-delay-minutes",
+        type=int,
+        default=0,
+        help=(
+            "Minutes between the feature timestamp and the earliest "
+            "possible fill. The previous run assumed 0, which is not "
+            "achievable: exchange futures arrive on a 10-11 minute delay, "
+            "so a divergence computed for time T is not even visible until "
+            "roughly T+11. Measuring at 0 flatters the strategy by handing "
+            "it a fill nobody could have got."
+        ),
+    )
     args = parser.parse_args()
 
     spec = load_intraday_spec(args.spec)
@@ -167,7 +180,11 @@ def main() -> None:
     )
     print(
         f"sign(divergence) * forward return, in basis points. "
-        f"Round-trip cost budget: {cost_bps:.1f} bps.\n"
+        f"Round-trip cost budget: {cost_bps:.1f} bps."
+    )
+    print(
+        f"Entry delayed {args.entry_delay_minutes} minutes after the "
+        f"feature timestamp.\n"
     )
 
     for horizon in HORIZONS:
@@ -186,7 +203,11 @@ def main() -> None:
             series = prices.get(symbol)
             if not series:
                 continue
-            start = parse_iso(str(stamp))
+            # The position opens when the signal first becomes actionable,
+            # not when the feature is timestamped.
+            start = parse_iso(str(stamp)) + timedelta(
+                minutes=args.entry_delay_minutes
+            )
             end = start + timedelta(minutes=horizon)
             p0 = series.get(start)
             p1 = series.get(end)
