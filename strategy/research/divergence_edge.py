@@ -74,11 +74,22 @@ def percentile(ordered: list[float], p: float) -> float:
     return ordered[index]
 
 
-def summarize(values: list[float]) -> tuple[float, float, float, int]:
-    """Mean in basis points, its t-statistic, hit rate, and count."""
+MINIMUM_SAMPLE = 30
+
+
+def summarize(
+    values: list[float],
+) -> tuple[float | None, float, float, int]:
+    """Mean in basis points, its t-statistic, hit rate, and count.
+
+    Returns a mean of None below the minimum sample rather than 0.0. A
+    printed zero reads as "measured, no edge", which is the opposite of
+    "not enough observations to say" -- and this table is meant to inform
+    whether to commit to an eight-week run.
+    """
     n = len(values)
-    if n < 30:
-        return 0.0, 0.0, 0.0, n
+    if n < MINIMUM_SAMPLE:
+        return None, 0.0, 0.0, n
     mean = statistics.fmean(values)
     sd = statistics.stdev(values)
     t_stat = mean / (sd / math.sqrt(n)) if sd > 0 else 0.0
@@ -209,6 +220,13 @@ def main() -> None:
                 if abs(d) >= cut
             ]
             mean_bps, t_stat, hits, n = summarize(selected)
+            if mean_bps is None:
+                print(
+                    f"    {label:>22} {n:7} "
+                    f"{'--':>9} {'--':>7} {'--':>6}  "
+                    f"too few to say"
+                )
+                continue
             net = mean_bps - cost_bps
             verdict = "positive" if net > 0 else ""
             print(
