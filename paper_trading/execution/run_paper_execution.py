@@ -1898,11 +1898,27 @@ def choose_exit_reason(
         bool(maximum["enabled"])
         and holding_minutes >= float(maximum["minutes"])
     ):
-        # Time-based exits are triggered at the first available mark at or
-        # after the configured holding limit.
+        # Trigger at the holding limit itself, not at the current bar.
+        #
+        # next_fill_bar looks for a bar strictly after the trigger and at or
+        # before as_of. Anchoring the trigger to the moving current bar makes
+        # that window empty on every single cycle -- the trigger *is* the
+        # latest bar -- so the exit re-fires each minute and never fills. A
+        # position was found held for 450 minutes against this 240-minute
+        # limit, writing an exit decision every minute for three and a half
+        # hours without ever closing.
+        #
+        # The limit is a fixed point, so as_of advances past it and the exit
+        # fills on the following bar. That also makes the fill price the one
+        # at the limit rather than whenever the problem was noticed, which is
+        # the honest simulation of a time stop.
+        holding_deadline = position.opened_at + timedelta(
+            minutes=float(maximum["minutes"])
+        )
+        details["holding_limit_utc"] = utc_iso(holding_deadline)
         return (
             "maximum_holding_time",
-            current_bar.timestamp,
+            holding_deadline,
             feature_id,
             spec_id,
             signal_strength,
