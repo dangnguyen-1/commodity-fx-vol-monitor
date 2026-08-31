@@ -144,6 +144,24 @@ generalise, and that is the answer.
 
 ---
 
+## The classifier is part of the setup
+
+News classification stays on **gpt-5.5** for the whole run, at roughly $44 a
+month.
+
+Cheaper models were tested on real articles with the production prompt.
+gpt-5.4-mini and gpt-5.4-nano cost $5 and $1.20 a month respectively, a 90
+to 97% saving, but agreed with gpt-5.5 on only 73% of asset and direction
+pairs, and mini returned twice as many impacts across the sample. For a
+signal that fires on news agreement, flagging twice as much is a change to
+the strategy rather than a saving on it.
+
+More to the point: this run exists to find out whether Confirmed mode works.
+Changing the classifier partway would make any result a statement about the
+new classifier instead, with no way to tell the two apart. The saving is
+worth revisiting once it is known whether the signal is worth running at
+all.
+
 ## What will not be done
 
 **Inverting the signal because the sign looks consistent.** The negative
