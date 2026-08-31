@@ -70,6 +70,12 @@ FX_STALE_LIMIT_MINUTES = 20
 
 DISK_WARN_PERCENT = 85.0
 
+# How long news classification may go quiet before it counts as broken.
+# Articles arrive continuously, so a long silence means the classifier has
+# stopped -- most often because OpenAI credit ran out, which otherwise fails
+# silently and takes Confirmed-mode signals with it.
+CLASSIFICATION_STALE_LIMIT_MINUTES = 180
+
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -228,6 +234,103 @@ def check_unresolved_alerts(
     ]
 
 
+def check_openai(database_url: str) -> list[Finding]:
+    """Spend against remaining credit, and whether classification still runs.
+
+    Two separate failures. Credit running low is worth knowing in advance;
+    classification having stopped is worth knowing immediately, and it can
+    happen for reasons other than money.
+    """
+    findings: list[Finding] = []
+    try:
+        import psycopg2
+    except ImportError:
+        return findings
+
+    try:
+        connection = psycopg2.connect(database_url)
+    except Exception as error:  # noqa: BLE001
+        return [
+            Finding(
+                key="openai_db",
+                severity="warning",
+                message=f"Could not reach Postgres to check OpenAI usage: {error}",
+            )
+        ]
+
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT COALESCE(SUM(estimated_cost_usd), 0),
+                       COALESCE(SUM(input_tokens), 0),
+                       COALESCE(SUM(output_tokens), 0)
+                FROM openai_usage
+                """
+            )
+            spent, input_tokens, output_tokens = cursor.fetchone()
+
+            cursor.execute(
+                """
+                SELECT EXTRACT(EPOCH FROM (now() - MAX(created_at_utc))) / 60
+                FROM news_sentiment
+                """
+            )
+            row = cursor.fetchone()
+            quiet_minutes = None if row is None or row[0] is None else float(row[0])
+    except Exception as error:  # noqa: BLE001
+        connection.close()
+        return [
+            Finding(
+                key="openai_query",
+                severity="warning",
+                message=f"OpenAI usage check failed: {error}",
+            )
+        ]
+    connection.close()
+
+    # Classification silence. Independent of billing: it catches an expired
+    # key, a model change, or a crashed process just as well.
+    if (
+        quiet_minutes is not None
+        and quiet_minutes > CLASSIFICATION_STALE_LIMIT_MINUTES
+    ):
+        findings.append(
+            Finding(
+                key="classification_stale",
+                severity="critical",
+                message=(
+                    f"No news classified for {quiet_minutes:.0f} minutes. "
+                    "Check OpenAI credit first, then the "
+                    "news-sentiment-stream process."
+                ),
+            )
+        )
+
+    # Remaining credit. Skipped entirely unless a starting balance is
+    # configured, because a threshold measured against an unknown budget
+    # would be theatre.
+    credit = float(os.environ.get("OPENAI_CREDIT_USD", "0") or 0)
+    alert_at = float(os.environ.get("OPENAI_ALERT_REMAINING_USD", "5") or 5)
+    if credit > 0:
+        remaining = credit - float(spent or 0)
+        if remaining <= alert_at:
+            findings.append(
+                Finding(
+                    key="openai_credit",
+                    severity="critical",
+                    message=(
+                        f"OpenAI credit down to ${remaining:.2f} of "
+                        f"${credit:.2f} (spent ${float(spent or 0):.2f} on "
+                        f"{int(input_tokens):,} in / {int(output_tokens):,} "
+                        "out tokens). Top up before classification stops."
+                    ),
+                )
+            )
+
+    return findings
+
+
 def check_disk(path: Path) -> list[Finding]:
     usage = shutil.disk_usage(path)
     used_percent = usage.used / usage.total * 100.0
@@ -344,6 +447,7 @@ def main() -> None:
             check_heartbeats(connection)
             + check_market_data_flowing(connection)
             + check_unresolved_alerts(connection)
+            + check_openai(os.environ.get("DATABASE_URL", ""))
             + check_disk(args.database.parent)
         )
     finally:

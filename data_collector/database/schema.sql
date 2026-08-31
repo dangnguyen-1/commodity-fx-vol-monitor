@@ -129,3 +129,30 @@ CREATE TABLE IF NOT EXISTS news_sentiment_status (
 
     UNIQUE(article_id, model)
 );
+
+-- Per-call OpenAI token usage, so spend can be tracked from this system
+-- rather than only from the provider's dashboard. The paper-trading schema
+-- has an api_usage table for the same purpose, but it lives in SQLite while
+-- the classifier writes here, and nothing had ever populated either.
+--
+-- estimated_cost_usd is computed from configured per-million-token prices.
+-- It is an estimate by construction: the authoritative number is always the
+-- provider's invoice.
+CREATE TABLE IF NOT EXISTS openai_usage (
+    id BIGSERIAL PRIMARY KEY,
+
+    model TEXT NOT NULL,
+    request_type TEXT NOT NULL DEFAULT 'classification',
+
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    estimated_cost_usd DOUBLE PRECISION NOT NULL DEFAULT 0,
+
+    success BOOLEAN NOT NULL DEFAULT TRUE,
+    error TEXT,
+
+    created_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_openai_usage_created
+ON openai_usage (created_at_utc);
