@@ -12,6 +12,9 @@ from paper_trading.execution.run_paper_execution import (
     relationship_venues as registry_venues,
     run_paper_execution,
 )
+from paper_trading.features.build_feature_snapshots import (
+    ensure_strategy_spec,
+)
 from paper_trading.sessions.session_calendar import SessionCalendar
 from strategy.config.intraday.load_intraday_spec import (
     DEFAULT_SPEC_PATH,
@@ -360,11 +363,18 @@ def setup_test_database(
         (
             source_feature_id,
             _source_run_id,
-            spec_id,
+            _historical_spec_id,
             relationship_id,
             feature_timestamp,
             fx_symbol,
         ) = candidate
+
+        # Use the spec that is current *now*, not the one the shipped
+        # feature snapshot was built under. The engine refuses to run a
+        # paper_run whose spec_id does not match the loaded spec -- rightly,
+        # since a run must not straddle two versions of the formula -- so a
+        # fixture pinned to the historical id breaks on every version bump.
+        spec_id = ensure_strategy_spec(connection, spec)
 
         # The shipped feature timestamp sits inside the pre-close blackout,
         # so the lifecycle is exercised at a session-safe moment instead.

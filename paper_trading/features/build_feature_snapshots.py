@@ -724,15 +724,39 @@ def normalize_return(
     value: float | None,
     volatility: float | None,
     volatility_floor: float,
+    *,
+    return_window_minutes: int,
+    volatility_window_minutes: int,
 ) -> float | None:
+    """Divide a return by the volatility of a move over the same horizon.
+
+    The volatility input is realised over `volatility_window_minutes` (60),
+    but the returns being normalised span 15, 60 and 240 minutes. Dividing
+    all three by the same 60-minute figure compares each return against the
+    wrong yardstick: under the usual square-root-of-time scaling a 240-minute
+    move has roughly twice the standard deviation of a 60-minute one, and a
+    15-minute move about half.
+
+    Left uncorrected this does not merely add noise, it silently re-weights
+    the blend. Expressed in units of `return / volatility_60m`, the spec's
+    intended 0.50 / 0.30 / 0.20 weighting was really behaving as
+    1.00 / 0.30 / 0.10 -- the 15-minute term halved and the 240-minute term
+    doubled -- so the impulse leaned on the long horizon far harder than the
+    configuration says it does.
+    """
     if (
         value is None
         or volatility is None
     ):
         return None
 
+    horizon_scale = math.sqrt(
+        return_window_minutes
+        / volatility_window_minutes
+    )
+
     denominator = max(
-        volatility,
+        volatility * horizon_scale,
         volatility_floor,
     )
 
@@ -925,14 +949,20 @@ def build_market_features(
             commodity_returns[window],
             commodity_volatility,
             volatility_floor,
+            return_window_minutes=window,
+            volatility_window_minutes=volatility_window,
         )
         for window in commodity_windows
     }
 
+    # The FX leg has the same mismatch: its return window is 15 minutes while
+    # its volatility is realised over 60.
     normalized_fx = normalize_return(
         fx_return,
         fx_volatility,
         volatility_floor,
+        return_window_minutes=fx_window,
+        volatility_window_minutes=volatility_window,
     )
 
     impulse_weights = feature_spec[

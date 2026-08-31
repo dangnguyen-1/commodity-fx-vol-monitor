@@ -1419,6 +1419,26 @@ def process_entry(
             )
             return "rejected"
 
+        # Thin-liquidity suppression. The fill model charges a flat fallback
+        # spread, so it cannot see that an hour the venue barely trades in
+        # costs more to get into and considerably more to get out of.
+        thin, thin_venue = session_calendar().entry_in_thin_liquidity(
+            commodity_venue=commodity_venue,
+            fx_venue=fx_venue,
+            as_of=decision.decision_timestamp,
+        )
+        if thin:
+            reject_or_cancel_entry(
+                connection,
+                decision=decision,
+                status="rejected",
+                reason=f"thin_liquidity_hour_{thin_venue.lower()}",
+                signal_price=signal_bar.close_price,
+                notional_usd=0.01,
+                expected_cost_bps=0.0,
+            )
+            return "rejected"
+
     state = portfolio_state(
         connection,
         run_id=decision.run_id,

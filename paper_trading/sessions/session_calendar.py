@@ -236,6 +236,44 @@ class SessionCalendar:
         )
         return as_of >= deadline.deadline_utc, deadline
 
+    def in_thin_hour(
+        self,
+        name: str,
+        as_of: datetime,
+    ) -> bool:
+        """Whether this venue barely trades at this hour.
+
+        Hours are stored in venue-local time, so this converts before
+        comparing — the same reason close/open times are stored that way.
+        A venue with no thin hours recorded simply never matches.
+        """
+        venue = self.venue(name)
+        thin = venue.get("thin_hours_local") or []
+        if not thin:
+            return False
+
+        local = as_of.astimezone(ZoneInfo(venue["timezone"]))
+        return local.hour in set(thin)
+
+    def entry_in_thin_liquidity(
+        self,
+        *,
+        commodity_venue: str,
+        fx_venue: str,
+        as_of: datetime,
+    ) -> tuple[bool, str | None]:
+        """Whether either leg is in one of its thin hours.
+
+        Either leg is enough. A commodity leg that is barely trading gives a
+        stale signal; an FX leg that is barely trading gives a fill worse
+        than the cost model assumes.
+        """
+        if self.in_thin_hour(commodity_venue, as_of):
+            return True, commodity_venue
+        if self.in_thin_hour(fx_venue, as_of):
+            return True, fx_venue
+        return False, None
+
     def entry_blocked(
         self,
         *,

@@ -1,6 +1,12 @@
 strategy:
   name: commodity_fx_intraday
-  specification_version: "0.1.0"
+  # 0.2.0 corrects the volatility normalization (each return horizon is now
+  # scaled by sqrt(window / 60) rather than all three sharing the 60-minute
+  # figure) and suppresses entries during a venue's empirically thin hours.
+  # Both are recorded here rather than patched silently in code, per the
+  # change-control rule. See threshold_calibration_status below: the
+  # thresholds have NOT been re-derived for this scale yet.
+  specification_version: "0.2.0"
   status: draft_for_local_replay
   parent_research_version: "v1.0.0"
   paper_trading_only: true
@@ -88,7 +94,18 @@ features:
     return_240m: 0.20
 
   normalization:
-    method: return_divided_by_trailing_realized_volatility
+    # Each return is divided by the volatility of a move over *its own*
+    # horizon, obtained by scaling the 60-minute realised volatility by
+    # sqrt(window / 60).
+    #
+    # Through v0.1.0 all three horizons were divided by the same 60-minute
+    # figure, which compared each return against the wrong yardstick. The
+    # effect was not just noise: expressed in units of return/volatility_60m,
+    # the 0.50/0.30/0.20 weighting below was really behaving as
+    # 1.00/0.30/0.10, so the impulse leaned on the 240-minute term about
+    # twice as hard as this file says it does.
+    method: return_divided_by_horizon_scaled_realized_volatility
+    horizon_scaling: sqrt_of_window_over_volatility_window
     minimum_volatility_floor: 0.000001
 
   news:
@@ -130,6 +147,31 @@ signals:
 
     divergence_score: >
       expected_fx_impulse - observed_fx_impulse
+
+  # CALIBRATION WARNING (v0.2.0)
+  # --------------------------------------------------------------------
+  # Every threshold below that is expressed on the impulse or divergence
+  # scale was chosen against the pre-v0.2.0 normalization, which is now
+  # known to have been wrong. Correcting it moved those quantities
+  # materially -- on the sample available when the fix landed, divergence
+  # scores roughly doubled and one relationship changed sign -- so these
+  # numbers no longer mean what they meant when they were picked, and the
+  # strategy will fire more often than intended if they are left as-is.
+  #
+  # They are deliberately unchanged here rather than silently rescaled:
+  # preserving the old firing rate would only be preserving the behaviour
+  # of a broken formula, and there is not yet enough post-fix feature
+  # history to re-derive them honestly. They must be re-derived from
+  # accumulated v0.2.0 features before Step 9's formal run begins, since
+  # that run forbids rule changes once started.
+  #
+  # Affected: minimum_absolute_expected_fx_impulse,
+  # minimum_absolute_commodity_impulse, minimum_absolute_divergence_score
+  # (both modes), exits.signal_reversal.minimum_opposite_signal_strength,
+  # exits.divergence_convergence.close_when_absolute_divergence_below.
+  # Not affected: exits.volatility_stop.volatility_units, which is measured
+  # against raw returns rather than normalized ones.
+  threshold_calibration_status: pending_rederivation_against_v0_2_0_features
 
   entry_modes:
     confirmed:

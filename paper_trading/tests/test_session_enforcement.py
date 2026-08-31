@@ -32,6 +32,9 @@ from paper_trading.execution.run_paper_execution import (
     run_paper_execution,
     utc_iso,
 )
+from paper_trading.features.build_feature_snapshots import (
+    ensure_strategy_spec,
+)
 from paper_trading.sessions.session_calendar import SessionCalendar
 from paper_trading.tests.test_paper_execution_lifecycle import (
     configure,
@@ -210,11 +213,15 @@ def main() -> None:
         (
             source_feature_id,
             _run_id,
-            spec_id,
+            _historical_spec_id,
             relationship_id,
             _feature_timestamp,
             fx_symbol,
         ) = select_candidate(connection)
+
+        # The spec current now, not the one the shipped snapshot was built
+        # under; the engine refuses a run whose spec_id does not match.
+        spec_id = ensure_strategy_spec(connection, spec)
 
         (
             entry_bar,

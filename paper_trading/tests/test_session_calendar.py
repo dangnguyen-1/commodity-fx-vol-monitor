@@ -139,6 +139,24 @@ def main() -> None:
     check("deadline stays the open day's close",
           iso(overdue.deadline_utc), "2026-08-25T20:59:00+00:00")
 
+    print("\nThin-liquidity hours (venue-local, so DST-safe):")
+    # RUS is thin at 07:00-08:00 Moscow, just after its 07:07 open.
+    # 07:30 Moscow is 04:30 UTC in summer.
+    rus_thin = datetime(2026, 8, 25, 4, 30, tzinfo=timezone.utc)
+    rus_busy = datetime(2026, 8, 25, 12, 0, tzinfo=timezone.utc)
+    check("RUS thin at 07:30 Moscow", calendar.in_thin_hour("RUS", rus_thin), True)
+    check("RUS not thin midday", calendar.in_thin_hour("RUS", rus_busy), False)
+    check("COMEX has no thin hours", calendar.in_thin_hour("COMEX", summer), False)
+
+    blocked_leg, which = calendar.entry_in_thin_liquidity(
+        commodity_venue="RUS", fx_venue="FX", as_of=rus_thin
+    )
+    check("thin commodity leg blocks entry", (blocked_leg, which), (True, "RUS"))
+    clear_leg, _ = calendar.entry_in_thin_liquidity(
+        commodity_venue="COMEX", fx_venue="FX", as_of=summer
+    )
+    check("liquid hour does not block", clear_leg, False)
+
     print("\nAn unknown venue is refused rather than assumed open:")
     try:
         calendar.flat_deadline(
