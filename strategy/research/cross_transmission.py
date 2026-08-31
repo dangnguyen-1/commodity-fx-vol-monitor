@@ -151,9 +151,10 @@ def main() -> None:
 
     cursor.execute(
         """
+        -- The doubled wildcard below is deliberate: psycopg2 treats a lone
+        -- percent sign as a parameter placeholder, anywhere in the query
+        -- text including comments, so it must be escaped.
         SELECT DISTINCT symbol FROM market_data
-        -- %% escapes the wildcard: psycopg2 reads a bare % as a parameter
-        -- placeholder and fails to match it against the argument tuple.
         WHERE symbol LIKE 'FX:%%' AND timeframe = %s
         ORDER BY symbol
         """,
