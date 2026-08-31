@@ -152,7 +152,9 @@ def main() -> None:
     cursor.execute(
         """
         SELECT DISTINCT symbol FROM market_data
-        WHERE symbol LIKE 'FX:%' AND timeframe = %s
+        -- %% escapes the wildcard: psycopg2 reads a bare % as a parameter
+        -- placeholder and fails to match it against the argument tuple.
+        WHERE symbol LIKE 'FX:%%' AND timeframe = %s
         ORDER BY symbol
         """,
         (args.timeframe,),
