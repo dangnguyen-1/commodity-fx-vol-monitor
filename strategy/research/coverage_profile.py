@@ -47,6 +47,91 @@ DEFAULT_DATABASE_PATH = (
 )
 
 
+def tradeable_hours(
+    *,
+    registry,
+    counts,
+    ordered_hours,
+    days: int,
+    required: float,
+) -> dict[str, int]:
+    """Hours in which both legs clear `required` percent coverage."""
+    target = required / 100.0 * 60.0 * days
+    out: dict[str, int] = {}
+    for relationship_id, commodity_symbol, _venue in registry:
+        fx_symbol = str(relationship_id).split("__")[-1]
+        hours = 0
+        for hour in ordered_hours:
+            c = counts.get((str(commodity_symbol), hour), 0)
+            f = counts.get((fx_symbol, hour), 0)
+            if c >= target and f >= target:
+                hours += 1
+        out[str(relationship_id)] = hours
+    return out
+
+
+def compare(
+    thresholds: list[float],
+    *,
+    registry,
+    counts,
+    ordered_hours,
+    days: int,
+    start: str | None,
+    end: str | None,
+    spec_required: float,
+) -> None:
+    """How the tradeable universe changes as the requirement is relaxed.
+
+    Relaxing coverage buys trading opportunity and pays for it in data
+    quality: a bar-sparse window means the returns feeding the impulse are
+    measured across gaps. This shows what each step actually buys, so the
+    threshold is chosen against a number rather than a feeling.
+    """
+    results = {
+        t: tradeable_hours(
+            registry=registry,
+            counts=counts,
+            ordered_hours=ordered_hours,
+            days=days,
+            required=t,
+        )
+        for t in thresholds
+    }
+    total_hours = len(ordered_hours)
+    window = f"{start}..{end} ({days} days)" if start and end else "recent"
+
+    print(f"\nCoverage sensitivity over {window}")
+    print(f"Tradeable hours out of {total_hours}, by threshold. "
+          f"Spec is currently {spec_required:.0f}%.\n")
+
+    header = f"{'relationship':34}" + "".join(
+        f"{t:>8.0f}%" for t in thresholds
+    )
+    print(header)
+    print("-" * len(header))
+
+    names = sorted(
+        results[thresholds[0]],
+        key=lambda n: -max(results[t][n] for t in thresholds),
+    )
+    for name in names:
+        row = f"{name[:34]:34}"
+        for t in thresholds:
+            hours = results[t][name]
+            row += f"{hours:>7}h "
+        print(row)
+
+    print()
+    for t in thresholds:
+        live = [n for n, h in results[t].items() if h > 0]
+        usable = [n for n, h in results[t].items() if h >= total_hours * 0.5]
+        print(
+            f"  {t:.0f}%: {len(live):2} relationships tradeable at all, "
+            f"{len(usable):2} tradeable at least half the day"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Per-relationship bar coverage by hour."
@@ -62,6 +147,14 @@ def main() -> None:
              "venue's session, which a recent-hours window may not.",
     )
     parser.add_argument("--end", default=None, help="YYYY-MM-DD (UTC)")
+    parser.add_argument(
+        "--thresholds",
+        default=None,
+        help="Comma-separated coverage percentages to compare, e.g. "
+             "'95,90,85'. Prints a comparison table instead of the "
+             "per-hour grid, so the cost of relaxing the requirement is "
+             "visible rather than argued about.",
+    )
     args = parser.parse_args()
 
     load_dotenv(PROJECT_ROOT / ".env")
@@ -133,6 +226,19 @@ def main() -> None:
 
     if not hours_seen:
         raise SystemExit("No 1-minute bars in that window.")
+
+    if args.thresholds:
+        compare(
+            [float(v) for v in args.thresholds.split(",")],
+            registry=registry,
+            counts=counts,
+            ordered_hours=sorted(hours_seen),
+            days=days,
+            start=args.start,
+            end=args.end,
+            spec_required=required,
+        )
+        return
 
     window = (
         f"{args.start}..{args.end} ({days} days)"
