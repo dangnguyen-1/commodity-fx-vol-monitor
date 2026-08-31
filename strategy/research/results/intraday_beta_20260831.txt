@@ -1,0 +1,26 @@
+
+Intraday transmission coefficient, 8340 snapshots across 14 relationships
+beta of observed_fx_impulse on commodity_impulse (both volatility-normalized)
+
+relationship                           n  intraday_b      R2  daily_b   ratio
+-----------------------------------------------------------------------------
+Gold__AUD__FX:AUDUSD                1143       0.664  0.2286    0.312    2.13
+Gold__USD__FX:EURUSD                1143       0.544  0.1541    0.267    2.03
+Copper__AUD__FX:AUDUSD               817       0.533  0.1886    0.423    1.26
+Silver__USD__FX:EURUSD               819       0.427  0.1030    0.252    1.69
+Platinum__USD__FX:EURUSD             341       0.369  0.0989    0.250    1.48
+Natural Gas__CAD__DERIVED:CADUSD     718       0.256  0.0264    0.062    4.16
+Cotton__USD__FX:EURUSD               246       0.232  0.0375    0.018   12.90
+Heating Oil__CAD__DERIVED:CADUSD     415      -0.131  0.0096    0.318   -0.41
+Gasoline__CAD__DERIVED:CADUSD        424       0.127  0.0110    0.308    0.41
+Brent Oil__CAD__DERIVED:CADUSD       671       0.065  0.0025    0.358    0.18
+Crude Oil__CAD__DERIVED:CADUSD      1142       0.054  0.0016    0.329    0.17
+Cocoa__GBP__FX:GBPUSD                266       0.047  0.0011    0.002   26.10
+
+Below 200 observations - too thin to read:
+  Wheat__USD__FX:EURUSD                155       0.254  0.0231
+  Cattle__AUD__FX:AUDUSD                40       0.962  0.2123
+
+intraday beta: median 0.244, max 0.664
+The spec assumes this quantity is 1.0 for every relationship.
+intraday/daily ratio: median 1.59 (below 1 is the Epps effect; the daily screen overstates intraday transmission by roughly 0.6x)
