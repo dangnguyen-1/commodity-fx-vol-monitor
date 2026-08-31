@@ -69,6 +69,18 @@ def main() -> None:
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--run-id", default=REPLAY_RUN_ID)
     parser.add_argument(
+        "--horizon-matched",
+        action="store_true",
+        help=(
+            "Regress the 15-minute FX return on the 15-minute commodity "
+            "return instead of on the 15/60/240 blend. The blend is what "
+            "the strategy compares, so it is the right basis for setting "
+            "the coefficient -- but it mixes horizons, so this is the "
+            "check that the number is a transmission coefficient rather "
+            "than an artifact of that mismatch."
+        ),
+    )
+    parser.add_argument(
         "--csv",
         type=Path,
         default=None,
@@ -83,15 +95,25 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    x_column = (
+        "normalized_commodity_return_15m"
+        if args.horizon_matched
+        else "commodity_impulse"
+    )
+    y_column = (
+        "normalized_fx_return_15m"
+        if args.horizon_matched
+        else "observed_fx_impulse"
+    )
     connection = sqlite3.connect(args.database)
     rows = connection.execute(
-        """
-        SELECT relationship_id, commodity_impulse, observed_fx_impulse
+        f"""
+        SELECT relationship_id, {x_column}, {y_column}
         FROM feature_snapshots
         WHERE run_id = ?
           AND market_data_complete = 1
-          AND commodity_impulse IS NOT NULL
-          AND observed_fx_impulse IS NOT NULL
+          AND {x_column} IS NOT NULL
+          AND {y_column} IS NOT NULL
         """,
         (args.run_id,),
     ).fetchall()
@@ -120,7 +142,7 @@ def main() -> None:
         f"across {len(grouped)} relationships"
     )
     print(
-        "beta of observed_fx_impulse on commodity_impulse "
+        f"beta of {y_column} on {x_column} "
         "(both volatility-normalized)\n"
     )
     header = (
