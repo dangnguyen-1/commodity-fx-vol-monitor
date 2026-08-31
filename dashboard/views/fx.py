@@ -17,7 +17,11 @@ from data.fx import FX_NAMES
 
 def layout(names: list[str] = FX_NAMES) -> html.Div:
     return html.Div([
-        html.Div(id="fx-summary-cards", className="mb-3"),
+        # dbc.Row, not html.Div: the children are dbc.Col, and a Bootstrap
+        # column needs a .row flex parent to lay out horizontally. Inside a
+        # plain div each column stays a block element at its declared width
+        # and they stack in a single vertical strip.
+        dbc.Row(id="fx-summary-cards", className="mb-3"),
         dbc.Row(
             [
                 dbc.Col(
