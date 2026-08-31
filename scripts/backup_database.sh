@@ -56,4 +56,9 @@ fi
 # leave us with nothing.
 DELETED=$(find backups -name 'commodities_*.dump' -type f -mtime +"$KEEP_DAYS" -print -delete | wc -l)
 echo "rotated out $DELETED backup(s) older than $KEEP_DAYS days"
-echo "retained: $(find backups -name 'commodities_*.dump' -type f | wc -l) backup(s), $(du -sh backups | cut -f1) total"
+# Size only our own dumps, not everything in backups/ — the one-off
+# migration seed lives here too, and counting it made a single 20M backup
+# report as "1 backup(s), 40M total".
+KEPT=$(find backups -name 'commodities_*.dump' -type f | wc -l)
+KEPT_SIZE=$(find backups -name 'commodities_*.dump' -type f -exec du -ch {} + 2>/dev/null | tail -1 | cut -f1)
+echo "retained: $KEPT backup(s), ${KEPT_SIZE:-0} total"
