@@ -498,11 +498,12 @@ def _bullets(items: list[str]) -> Any:
 
 
 def overview_layout() -> Any:
-    """What the strategy is, how it is tested, and what the evidence says.
+    """What the strategy is, how it was tested, and what the evidence says.
 
-    Written for a reader arriving cold. The status section states the
-    negative result plainly: a monitor that only reports favourable findings
-    is not a monitor.
+    Written for a reader arriving cold. The findings section states the
+    negative results plainly, including the one that undermines the
+    strategy's own premise. A page that reports only what flatters the work
+    is not worth putting a link on.
     """
     return html.Div([
         PAPER_BANNER,
@@ -515,10 +516,10 @@ def overview_layout() -> Any:
                 "Canadian dollar does."
             ),
             _para(
-                "The hypothesis under test is that this response is not "
-                "instant. If a commodity moves and its currency has not yet "
-                "followed, the gap between them may be tradeable over the "
-                "following minutes or hours."
+                "The hypothesis is that the response is not instant. If a "
+                "commodity moves and its currency has not yet followed, the "
+                "gap between them may be tradeable over the following "
+                "minutes or hours."
             ),
             _para(
                 "The system tracks 30 commodity and currency relationships, "
@@ -532,10 +533,11 @@ def overview_layout() -> Any:
                 "Commodity returns over 15, 60 and 240 minutes, each divided "
                 "by the volatility of a move over that same horizon.",
                 "A transmission coefficient per relationship, measured from "
-                "historical data rather than assumed, giving the size of FX "
-                "move a commodity move should produce.",
-                "News sentiment from Reuters, MarketWatch and Investing.com, "
-                "classified by an LLM and decayed over four hours.",
+                "data rather than assumed, giving the size of currency move "
+                "a commodity move should produce.",
+                "News sentiment from Reuters, MarketWatch and "
+                "Investing.com, classified by an LLM and decayed over four "
+                "hours.",
                 "Divergence is the difference between the expected currency "
                 "move and the observed one.",
             ]),
@@ -548,24 +550,43 @@ def overview_layout() -> Any:
             ),
         ])),
 
-        _section("Status: discovery run", html.Div([
+        _section("What the evidence says", html.Div([
             _para(
-                "This is not a validated strategy. It is a live experiment "
-                "with the measurement plan written before the run started."
+                "This is a live experiment, not a validated strategy. Three "
+                "findings so far, none of them flattering."
             ),
             _para(
-                "The Divergence mode has evidence against it. Measured over "
-                "8,340 historical evaluations at a realistic fill, the "
-                "expected return was negative at every holding period tested "
-                "and worst among the largest signals, which is the "
-                "population the strategy is designed to trade. Against a "
-                "four basis point cost budget it was not close."
+                "The divergence signal has no measurable edge. Across 8,340 "
+                "historical evaluations at a realistic fill, expected return "
+                "was negative at every holding period tested and worst among "
+                "the largest signals, which is the population the strategy "
+                "is built to trade. Against a four basis point cost budget "
+                "it was not close."
             ),
             _para(
-                "The Confirmed mode has never been tested. News history only "
-                "begins when this pipeline started collecting, so there is "
-                "nothing to backtest against. It can only be evaluated "
-                "forward, which is what this run is for."
+                "The measured transmission is mostly the dollar. Removing "
+                "the common dollar move from both legs destroys 90 to 99 "
+                "percent of every commodity to currency relationship at "
+                "intraday horizons. Silver keeps 1.3 percent, copper 0.6, "
+                "gold 2.2. Since commodities are priced in dollars, a "
+                "commodity rising is partly the dollar falling, which lifts "
+                "every dollar pair. That is arithmetic, not economics, and "
+                "it explains the missing edge better than the premise being "
+                "wrong."
+            ),
+            _para(
+                "One relationship survives the test. Crude and Brent against "
+                "NZDCAD retain more than half their explanatory power once "
+                "the dollar is removed, where every metal collapses. Canada "
+                "exports oil and New Zealand does not, so the pair isolates "
+                "the oil exposure and cancels the dollar. Sixteen years of "
+                "daily data agree, with the oil complex retaining 92 to 97 "
+                "percent."
+            ),
+            _para(
+                "That result rests on two days of data and is not yet a "
+                "basis for changing anything. The crosses needed to test it "
+                "properly began collecting on 28 August."
             ),
         ])),
 
@@ -573,26 +594,29 @@ def overview_layout() -> Any:
             _bullets([
                 "Questions, metrics and decision rules fixed in writing "
                 "before the run began.",
-                "The final two weeks held out and scored once, with "
-                "parameters chosen without seeing them.",
-                "The specification is frozen for the duration. The engine "
-                "refuses to run if the file changes.",
+                "A held out period, scored once, with parameters chosen "
+                "without seeing it.",
+                "The specification is frozen while a run is live. The "
+                "engine refuses to start if the file changes.",
                 "Entry timing models the 10 to 11 minute delay measured on "
                 "the exchange futures feed, because a fill at the signal "
                 "timestamp is not achievable.",
                 "Costs charged at four basis points round trip. An edge "
                 "smaller than its transaction cost is not an edge.",
+                "Every finding above came from testing the strategy against "
+                "its own premise rather than tuning it until it looked "
+                "profitable.",
             ]),
         ])),
 
         _section("Infrastructure", html.Div([
             _bullets([
-                "Live TradingView collection, UN Comtrade trade flows, and "
-                "an LLM news classifier, all under process supervision.",
+                "Live market collection, UN Comtrade trade flows and an LLM "
+                "news classifier, all under process supervision.",
                 "A read only API between the database and this dashboard.",
                 "Session calendars derived from observed trading hours, "
                 "enforcing no overnight positions.",
-                "Health monitoring with alerting, nightly verified backups, "
+                "Health monitoring with alerting, nightly verified backups "
                 "and off box copies.",
             ]),
         ])),
