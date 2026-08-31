@@ -1,4 +1,5 @@
 .env
+.venv/
 node_modules/
 __pycache__/
 *.pyc
@@ -21,3 +22,9 @@ __pycache__/
 # runs the dashboard from here rather than dashboard/ directly.
 dashboard/cache/
 /cache/
+
+# Postgres dumps — the migration seed (scripts/migrate_database.sh) and any
+# ad-hoc backups. Real market/news data, sometimes hundreds of MB, and never
+# source. Keep them out of git.
+backups/
+*.dump
