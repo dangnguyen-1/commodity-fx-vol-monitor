@@ -62,6 +62,45 @@ def configure_connection(
     )
 
 
+# Columns added to tables that already exist in deployed databases.
+# schema.sql is all CREATE TABLE IF NOT EXISTS, which is what makes it safe
+# to re-run -- but that same property means it silently does nothing to a
+# table that is already there, so a new column never arrives. Each entry is
+# applied only when absent, so this stays idempotent alongside the script.
+COLUMN_MIGRATIONS: tuple[tuple[str, str, str], ...] = (
+    ("live_instrument_registry", "transmission_beta", "REAL"),
+    ("live_instrument_registry", "transmission_beta_observations", "INTEGER"),
+    ("live_instrument_registry", "transmission_beta_measured_at_utc", "TEXT"),
+)
+
+
+def apply_column_migrations(
+    connection: sqlite3.Connection,
+) -> list[str]:
+    applied: list[str] = []
+
+    for table, column, column_type in COLUMN_MIGRATIONS:
+        existing = {
+            str(row[1])
+            for row in connection.execute(
+                f"PRAGMA table_info({table})"
+            )
+        }
+        if not existing:
+            # Table does not exist in this database at all; the schema
+            # script owns creating it and there is nothing to migrate.
+            continue
+        if column in existing:
+            continue
+
+        connection.execute(
+            f"ALTER TABLE {table} ADD COLUMN {column} {column_type}"
+        )
+        applied.append(f"{table}.{column}")
+
+    return applied
+
+
 def initialize_database(
     database_path: Path = DEFAULT_DATABASE_PATH,
     schema_path: Path = DEFAULT_SCHEMA_PATH,
@@ -106,6 +145,10 @@ def initialize_database(
 
         connection.executescript(
             schema_sql
+        )
+
+        apply_column_migrations(
+            connection
         )
 
         now = utc_now_iso()

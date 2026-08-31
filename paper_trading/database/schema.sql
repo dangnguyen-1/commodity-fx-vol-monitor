@@ -858,6 +858,24 @@ CREATE TABLE IF NOT EXISTS live_instrument_registry (
         fx_direction_multiplier IN (-1, 1)
     ),
 
+    -- How much of a standardized commodity move actually shows up in the
+    -- currency, measured rather than assumed. The spec through v0.2.0 took
+    -- this to be exactly 1: a one-sigma commodity move was expected to
+    -- produce a one-sigma FX move. Measured at the trading horizon the
+    -- median is 0.244 and the strongest relationship reaches 0.664, so the
+    -- expected impulse -- and therefore every divergence score built from
+    -- it -- was inflated several-fold for every relationship.
+    --
+    -- Carries its own sign, so it supersedes fx_direction_multiplier for
+    -- the impulse. The multiplier stays because the news blend uses it as a
+    -- unit conversion rather than a magnitude, which is a different job.
+    --
+    -- NULL means not yet measured. The engine refuses to trade those rather
+    -- than falling back to 1, since 1 is now known to be wrong.
+    transmission_beta REAL,
+    transmission_beta_observations INTEGER,
+    transmission_beta_measured_at_utc TEXT,
+
     market_source_name TEXT NOT NULL,
 
     active INTEGER NOT NULL DEFAULT 1 CHECK (

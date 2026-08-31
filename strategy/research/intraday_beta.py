@@ -69,6 +69,13 @@ def main() -> None:
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--run-id", default=REPLAY_RUN_ID)
     parser.add_argument(
+        "--csv",
+        type=Path,
+        default=None,
+        help="Write relationship_id,transmission_beta,observations for "
+             "load_transmission_betas.py to consume.",
+    )
+    parser.add_argument(
         "--compare-daily",
         type=Path,
         default=None,
@@ -167,6 +174,21 @@ def main() -> None:
         )
         for relationship_id, n, beta, r2 in sorted(thin, key=lambda t: -t[1]):
             print(f"  {relationship_id[:34]:34} {n:5} {beta:11.3f} {r2:7.4f}")
+
+    if args.csv:
+        with args.csv.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(
+                ["relationship_id", "transmission_beta", "observations"]
+            )
+            # Thin estimates are written too, with their observation count,
+            # so the loader applies its own floor rather than this script
+            # silently deciding what counts as enough evidence.
+            for relationship_id, n, beta, r2, _d, _r in results:
+                writer.writerow([relationship_id, f"{beta:.6f}", n])
+            for relationship_id, n, beta, _r2 in thin:
+                writer.writerow([relationship_id, f"{beta:.6f}", n])
+        print(f"\nwrote {args.csv}")
 
     betas = [r[2] for r in results]
     ratios = [r[5] for r in results if r[5] is not None]

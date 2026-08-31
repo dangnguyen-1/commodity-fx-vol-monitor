@@ -6,7 +6,16 @@ strategy:
   # Both are recorded here rather than patched silently in code, per the
   # change-control rule. See threshold_calibration_status below: the
   # thresholds have NOT been re-derived for this scale yet.
-  specification_version: "0.2.0"
+  # 0.3.0 replaces the fixed +/-1 relationship_direction with a measured
+  # per-relationship transmission coefficient, lowers the market coverage
+  # requirement from 95% to 90%, and records the decision not to add a
+  # correlation-holding gate. See the notes at each.
+  #
+  # The thresholds below are STILL uncalibrated -- see
+  # threshold_calibration_status. They were wrong for v0.2.0's scale and
+  # this release moves the scale again, so they must be re-derived from
+  # v0.3.0 features before Step 9 begins.
+  specification_version: "0.3.0"
   status: draft_for_local_replay
   parent_research_version: "v1.0.0"
   paper_trading_only: true
@@ -24,7 +33,26 @@ data:
 
     require_completed_bars: true
     maximum_bar_lateness_seconds: 90
-    minimum_window_coverage_pct: 95.0
+    # Lowered from 95.0 in v0.3.0.
+    #
+    # Measured across five full trading days, 95% left sixteen of thirty
+    # relationships with zero tradeable hours -- and left the single most
+    # tradeable relationship in the book, Crude Oil/CAD at 21 hours a day,
+    # with an intraday R2 of 0.0016. The threshold was selecting the
+    # universe more forcefully than the research was, and selecting it
+    # badly.
+    #
+    # 90% is where relaxing buys a relationship that actually works: Silver
+    # goes from 15 to 20 tradeable hours while the noise relationships
+    # barely move (Cotton 6 -> 7, Heating Oil 8 -> 8). Below 90% almost all
+    # the gain accrues to relationships with no measurable transmission,
+    # which is the wrong trade -- buying opportunity in the instruments that
+    # should not be trading.
+    #
+    # Fifteen relationships have no tradeable hour at any threshold down to
+    # 80%. Their data simply is not there, so this number is not what
+    # excludes them.
+    minimum_window_coverage_pct: 90.0
 
     timestamp_standard: UTC
 
@@ -139,8 +167,25 @@ signals:
       + 0.30 * normalized_commodity_return_60m
       + 0.20 * normalized_commodity_return_240m
 
+    # v0.3.0 replaces the fixed relationship_direction magnitude with a
+    # measured per-relationship transmission coefficient. The spec had
+    # asserted that a one-sigma commodity move produces a one-sigma FX move;
+    # measured at this horizon the median is 0.244 and the strongest
+    # relationship reaches 0.664, so this term was inflated several-fold for
+    # every relationship in the book.
+    #
+    # Static, not rolling. Beta stability across non-overlapping windows
+    # tops out at 1.62 and reaches 2 nowhere, so a rolling estimate would
+    # trade a badly wrong constant for a noisy one and add a lookback window
+    # to tune. It is refreshed on the same annual cadence as
+    # relationship_weights, and derated between reviews by
+    # relationship_live_derate.
+    #
+    # A relationship with no measured beta produces no expected impulse and
+    # therefore no signal. Falling back to 1 would preserve the error for
+    # exactly the relationships nobody has measured.
     expected_fx_impulse: >
-      relationship_direction
+      transmission_beta
       * (commodity_impulse + 0.75 * news_impulse)
 
     observed_fx_impulse: normalized_fx_return_15m
@@ -171,7 +216,29 @@ signals:
   # exits.divergence_convergence.close_when_absolute_divergence_below.
   # Not affected: exits.volatility_stop.volatility_units, which is measured
   # against raw returns rather than normalized ones.
-  threshold_calibration_status: pending_rederivation_against_v0_2_0_features
+  threshold_calibration_status: pending_rederivation_against_v0_3_0_features
+
+  # DECISION: no correlation-holding gate (handoff section 2.6, item 3)
+  # --------------------------------------------------------------------
+  # The proposal was to stop evaluating entries for a relationship whose
+  # rolling correlation had broken down. Not adopted, for three reasons.
+  #
+  # It duplicates something that already exists. relationship_live_derate
+  # tracks each relationship's trailing live P&L and cuts its effective
+  # weight once it has enough closed trades. Realized P&L is a more direct
+  # measure of "this has stopped working" than correlation is, so the gate
+  # would add a second mechanism doing the same job with a worse proxy.
+  #
+  # It adds a threshold tuned across thirty relationships, which is the
+  # standard way to acquire a filter that flatters the backtest and
+  # disappoints live.
+  #
+  # And it misreads the evidence. On daily data the gate would not be
+  # catching intermittent breakdowns in working relationships -- for about
+  # seventeen of thirty it would simply be permanently on, because those
+  # relationships never held. That is a universe problem, and it is
+  # addressed by removing them rather than by filtering them every cycle.
+  correlation_holding_gate: not_adopted_superseded_by_relationship_live_derate
 
   entry_modes:
     confirmed:

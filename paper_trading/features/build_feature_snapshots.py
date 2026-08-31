@@ -36,6 +36,9 @@ class RelationshipRoute:
     commodity_symbol: str
     fx_symbol: str
     relationship_direction: int
+    # Measured transmission coefficient, carrying its own sign. None when
+    # the relationship has never been measured -- see expected_fx_impulse.
+    transmission_beta: float | None
     market_source_name: str
     selected: int
     selection_weight: float
@@ -437,6 +440,7 @@ def load_relationship_routes(
             r.fx_symbol,
             r.fx_direction_multiplier,
             l.fx_direction_multiplier,
+            l.transmission_beta,
             l.market_source_name,
             rw.selected,
             rw.selection_weight
@@ -469,6 +473,7 @@ def load_relationship_routes(
             fx_symbol,
             relationship_direction,
             registry_direction,
+            transmission_beta,
             market_source_name,
             selected,
             selection_weight,
@@ -515,6 +520,11 @@ def load_relationship_routes(
                 fx_symbol=str(fx_symbol),
                 relationship_direction=int(
                     relationship_direction
+                ),
+                transmission_beta=(
+                    None
+                    if transmission_beta is None
+                    else float(transmission_beta)
                 ),
                 market_source_name=str(
                     market_source_name
@@ -1421,7 +1431,20 @@ def upsert_feature_snapshot(
     news_coefficient: float,
     created_at_utc: str,
 ) -> None:
-    if market.commodity_impulse is None:
+    # The transmission coefficient replaces the fixed +/-1 direction as the
+    # *magnitude* of the expected move. A relationship with no measured beta
+    # produces no expected impulse at all: falling back to 1 would keep the
+    # very error this replaces, and would do so precisely for the
+    # relationships nobody has checked.
+    #
+    # relationship_direction is untouched elsewhere. The news blend uses it
+    # to convert currency news into commodity-equivalent units, which is a
+    # unit conversion rather than a magnitude, and beta is the wrong tool
+    # for that job.
+    if (
+        market.commodity_impulse is None
+        or route.transmission_beta is None
+    ):
         expected_fx_impulse = None
         observed_fx_impulse = (
             market.normalized_fx_return_15m
@@ -1429,7 +1452,7 @@ def upsert_feature_snapshot(
         divergence_score = None
     else:
         expected_fx_impulse = (
-            route.relationship_direction
+            route.transmission_beta
             * (
                 market.commodity_impulse
                 + news_coefficient
