@@ -91,6 +91,18 @@ module.exports = {
       cron_restart: "0 6 * * *",
     },
     {
+      // Nightly pg_dump with rotation (see scripts/backup_database.sh).
+      // The market data is not reproducible — TradingView only serves a
+      // week or two of 1-minute history, so everything older than that
+      // lives in this database and nowhere else. Runs at 03:30 UTC, well
+      // clear of the 06:00 refresh jobs below.
+      name: "db-backup",
+      script: "scripts/backup_database.sh",
+      interpreter: "bash",
+      autorestart: false,
+      cron_restart: "30 3 * * *",
+    },
+    {
       // The pipeline's read-only API — the dashboard's only way to reach
       // market_data/fundamental_trade_data/paper-trading state.
       name: "pipeline-api",
