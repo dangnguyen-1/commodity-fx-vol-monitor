@@ -1,0 +1,89 @@
+### horizon_contribution
+
+Horizon contribution, 4783 snapshots across 5 relationships
+Spec blend weights: 15m 0.50 / 60m 0.30 / 240m 0.20
+
+relationship                         n  R2_15m  R2_60m  R2_240m  R2_all   implied weights (15/60/240)
+-----------------------------------------------------------------------------------------------------
+Copper__AUD__FX:AUDUSD             959  0.3241  0.0535   0.0029  0.3321      0.86     0.09      0.05
+Gold__AUD__FX:AUDUSD              1143  0.3042  0.0543   0.0151  0.3053      0.91     0.06      0.04
+Gold__USD__FX:EURUSD              1143  0.2180  0.0367   0.0047  0.2189      0.92     0.05      0.03
+Platinum__USD__FX:EURUSD           517  0.1668  0.0210   0.0002  0.1758      0.81     0.13      0.05
+Silver__USD__FX:EURUSD            1021  0.2009  0.0312   0.0000  0.2081      0.84     0.01      0.16
+
+mean implied weights: 15m 0.87 / 60m 0.07 / 240m 0.07
+against the spec's        15m 0.50 / 60m 0.30 / 240m 0.20
+
+In-sample, five days, one regime. Read the univariate R2 columns as the finding; the implied weights are a direction, not a prescription.
+
+### forward_prediction
+
+Forward prediction of the FX return over the next 15 minutes
+4653 observations across 5 relationships
+
+QUESTION 1 -- which horizon predicts the next move?
+
+  return_15m
+    all (overlapping)            n= 4653  beta=-0.0144  R2=0.0002  t= -0.93
+    every 3rd (independent)      n= 1551  beta=-0.0369  R2=0.0012  t= -1.37
+
+  return_60m
+    all (overlapping)            n= 4653  beta=-0.0782  R2=0.0056  t= -5.11
+    every 3rd (independent)      n= 1551  beta=-0.0934  R2=0.0078  t= -3.49
+
+  return_240m
+    all (overlapping)            n= 4653  beta=-0.0464  R2=0.0026  t= -3.49
+    every 3rd (independent)      n= 1551  beta=-0.0408  R2=0.0020  t= -1.76
+
+  commodity_impulse
+    all (overlapping)            n= 4653  beta=-0.0690  R2=0.0027  t= -3.55
+    every 3rd (independent)      n= 1551  beta=-0.0915  R2=0.0047  t= -2.70
+
+QUESTION 2 -- does divergence predict the move it bets on?
+  A positive beta means the currency does catch up, which is the
+  strategy's premise. Zero means it is trading noise. Negative
+  means it is trading the wrong way round.
+
+  divergence_score
+    all (overlapping)            n= 4653  beta=-0.0062  R2=0.0000  t= -0.38
+    every 3rd (independent)      n= 1551  beta=+0.0113  R2=0.0001  t= +0.41
+
+Per relationship, divergence -> forward FX (independent sample):
+  Copper__AUD__FX:AUDUSD             n= 308 beta=-0.0148 R2=0.0002 t= -0.23
+  Gold__AUD__FX:AUDUSD               n= 376 beta=+0.0201 R2=0.0003 t= +0.34
+  Gold__USD__FX:EURUSD               n= 376 beta=+0.0165 R2=0.0002 t= +0.29
+  Platinum__USD__FX:EURUSD           n= 161 beta=-0.0150 R2=0.0002 t= -0.18
+  Silver__USD__FX:EURUSD             n= 332 beta=-0.0121 R2=0.0001 t= -0.21
+
+### divergence_edge
+
+Divergence edge, spec v0.3.0
+sign(divergence) * forward return, in basis points. Round-trip cost budget: 4.0 bps.
+
+   15-minute holding horizon   (1581 obs)
+                 threshold  trades  mean bps       t   hit%  net of cost
+           all divergences    1581     -0.15   -1.47   50.4    -4.15 
+                   top 50%     791     -0.21   -1.48   51.2    -4.21 
+                   top 10%     159     -0.34   -1.14   52.2    -4.34 
+                    top 5%      80     -0.52   -1.02   50.0    -4.52 
+                    top 1%      17        --      --     --  too few to say
+
+   60-minute holding horizon   (391 obs)
+                 threshold  trades  mean bps       t   hit%  net of cost
+           all divergences     391     -0.86   -2.10   44.8    -4.86 
+                   top 50%     196     -0.85   -1.59   45.4    -4.85 
+                   top 10%      40     -4.37   -3.06   30.0    -8.37 
+                    top 5%      21        --      --     --  too few to say
+                    top 1%       5        --      --     --  too few to say
+
+  240-minute holding horizon   (95 obs)
+                 threshold  trades  mean bps       t   hit%  net of cost
+           all divergences      95     -1.53   -0.96   43.2    -5.53 
+                   top 50%      48     -1.77   -0.79   37.5    -5.77 
+                   top 10%      10        --      --     --  too few to say
+                    top 5%       6        --      --     --  too few to say
+                    top 1%       2        --      --     --  too few to say
+
+A mean of zero within noise means divergence carries no edge at that horizon.
+An edge smaller than the cost budget is not tradeable even if it is real.
+
