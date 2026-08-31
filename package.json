@@ -14,8 +14,8 @@
     "backfill:market:daily": "node data_collector/market_data/collectors/historical_daily_backfill.js",
     "backfill:market:daily:full": "npm run backfill:market:daily && npm run generate:fx-inverses",
     "stream:news": "python3 -m data_collector.news_data.collectors.news_stream",
-    "test:login": "node data_collector/tests/test_login.js",
-    "test:bars": "node data_collector/tests/test_bar_limit.js",
-    "test:stream": "node data_collector/tests/test_stream.js"
+    "test:login": "node data_collector/market_data/tests/test_login.js",
+    "test:bars": "node data_collector/market_data/tests/test_bar_limit.js",
+    "test:stream": "node data_collector/market_data/tests/test_stream.js"
   }
 }
