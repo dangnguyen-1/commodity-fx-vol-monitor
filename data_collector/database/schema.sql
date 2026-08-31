@@ -100,3 +100,32 @@ ON news_sentiment(asset);
 
 CREATE INDEX IF NOT EXISTS idx_news_sentiment_direction
 ON news_sentiment(direction);
+
+
+-- Per-article classification bookkeeping: which articles the sentiment
+-- model has already looked at, and how that went. Mirrors
+-- ensure_status_table() in news_sentiment.py, which creates this lazily on
+-- its first run. It belongs here too because paper_trading/news_data/
+-- sync_news.py SELECTs from it, and news-sync runs on a 5-minute cron that
+-- can easily fire before the sentiment stream's first pass on a freshly
+-- deployed database — leaving sync_news failing on a missing relation
+-- until the two happen to interleave the right way. Both definitions are
+-- CREATE TABLE IF NOT EXISTS, so whichever runs first wins and the other
+-- is a no-op.
+CREATE TABLE IF NOT EXISTS news_sentiment_status (
+    id BIGSERIAL PRIMARY KEY,
+
+    article_id BIGINT NOT NULL REFERENCES news_articles(id) ON DELETE CASCADE,
+
+    model TEXT NOT NULL,
+    status TEXT NOT NULL,
+
+    impacts_count INTEGER NOT NULL DEFAULT 0,
+    attempts INTEGER NOT NULL DEFAULT 0,
+
+    error TEXT,
+
+    updated_at_utc TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    UNIQUE(article_id, model)
+);
