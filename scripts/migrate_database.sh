@@ -83,14 +83,34 @@ fi
 EXISTING=$(psql "$TARGET_DATABASE_URL" -tAc \
   "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")
 if [ "$EXISTING" -ne 0 ]; then
+  # setup_cloud_vm.sh applies data_collector/database/schema.sql at its step
+  # 7, so the ordinary path to this script arrives with the tables already
+  # created and empty. That's fine — but pg_restore of a full dump would
+  # trip over every existing relation, so the empty shells have to go first.
+  # Anything with actual rows in it, though, is not something to bulldoze.
+  ROWS=0
+  for t in $TABLES; do
+    n=$(psql "$TARGET_DATABASE_URL" -tAc "SELECT count(*) FROM $t" 2>/dev/null || echo 0)
+    ROWS=$((ROWS + n))
+  done
+  if [ "$ROWS" -ne 0 ]; then
+    echo
+    echo "The target has $EXISTING table(s) holding $ROWS row(s) of real data."
+    echo "Refusing to touch it. Point this at a fresh database, or work out"
+    echo "what's in this one first — a restore here would destroy it."
+    exit 1
+  fi
   echo
-  echo "The target already has $EXISTING table(s) in the public schema."
-  echo "This script only restores into an empty database — see the note at the"
-  echo "top about why. Either point it at a genuinely fresh one, or drop and"
-  echo "recreate this one yourself if it's a scratch database you don't need."
-  exit 1
+  echo "The target has $EXISTING empty table(s) — almost certainly the schema"
+  echo "that setup_cloud_vm.sh applied. Dropping and recreating the public"
+  echo "schema so the restore lands cleanly. No rows are at risk."
+  read -p "Press Enter to drop the empty schema, Ctrl-C to abort... " _
+  psql "$TARGET_DATABASE_URL" -q -v ON_ERROR_STOP=1 \
+    -c "DROP SCHEMA public CASCADE" -c "CREATE SCHEMA public"
+  echo "Dropped."
+else
+  echo "Empty. Good."
 fi
-echo "Empty. Good."
 
 echo "=== [3/5] Dumping the source ==="
 mkdir -p backups
