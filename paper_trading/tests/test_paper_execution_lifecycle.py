@@ -9,8 +9,10 @@ from pathlib import Path
 
 from paper_trading.execution.run_paper_execution import (
     parse_utc_iso,
+    relationship_venues as registry_venues,
     run_paper_execution,
 )
+from paper_trading.sessions.session_calendar import SessionCalendar
 from strategy.config.intraday.load_intraday_spec import (
     DEFAULT_SPEC_PATH,
     load_intraday_spec,
@@ -70,6 +72,75 @@ def select_candidate(
         )
 
     return row
+
+
+def session_safe_timestamp(
+    connection: sqlite3.Connection,
+    *,
+    relationship_id: str,
+    fx_symbol: str,
+    spec: dict,
+) -> str:
+    """A bar timestamp far enough from the flat deadline to trade against.
+
+    Every complete feature snapshot in the shipped database happens to sit
+    minutes before the CME close, so using the newest one now produces a
+    `session_close_blackout` rejection and the position under test never
+    opens. That is the session rules working, not a fault — but this test is
+    about the entry/mark/exit lifecycle, so it needs a moment in the session
+    where an entry is actually permitted. Walk backwards through the FX
+    symbol's bars for the first one with room to spare.
+    """
+    calendar = SessionCalendar()
+    commodity_venue, fx_venue = registry_venues(
+        connection, relationship_id=relationship_id
+    )
+    blackout = float(
+        spec["sessions"][
+            "block_new_entries_before_market_close_minutes"
+        ]
+    )
+    # Enough headroom for the blackout itself plus the three bars this test
+    # steps the position through afterwards.
+    required_margin = blackout + 10.0
+
+    rows = connection.execute(
+        """
+        SELECT bar_timestamp_utc
+        FROM market_bars_1m
+        WHERE symbol = ?
+          AND is_complete = 1
+        ORDER BY bar_timestamp_utc DESC
+        """,
+        (fx_symbol,),
+    ).fetchall()
+
+    for (timestamp,) in rows:
+        as_of = parse_utc_iso(str(timestamp))
+        deadline = calendar.flat_deadline(
+            commodity_venue=commodity_venue,
+            fx_venue=fx_venue,
+            as_of=as_of,
+        )
+        if deadline.minutes_remaining(as_of) < required_margin:
+            continue
+
+        later = connection.execute(
+            """
+            SELECT COUNT(*)
+            FROM market_bars_1m
+            WHERE symbol = ?
+              AND is_complete = 1
+              AND bar_timestamp_utc > ?
+            """,
+            (fx_symbol, timestamp),
+        ).fetchone()[0]
+        if int(later) >= 3:
+            return str(timestamp)
+
+    raise RuntimeError(
+        f"No in-session bar for {fx_symbol} with three later bars."
+    )
 
 
 def next_three_bars(
@@ -294,6 +365,15 @@ def setup_test_database(
             feature_timestamp,
             fx_symbol,
         ) = candidate
+
+        # The shipped feature timestamp sits inside the pre-close blackout,
+        # so the lifecycle is exercised at a session-safe moment instead.
+        feature_timestamp = session_safe_timestamp(
+            connection,
+            relationship_id=str(relationship_id),
+            fx_symbol=str(fx_symbol),
+            spec=spec,
+        )
 
         bars = next_three_bars(
             connection,

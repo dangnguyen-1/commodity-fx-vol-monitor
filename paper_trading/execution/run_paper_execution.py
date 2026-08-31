@@ -12,6 +12,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
+from paper_trading.sessions.session_calendar import (
+    SessionCalendar,
+)
 from strategy.config.intraday.load_intraday_spec import (
     DEFAULT_SPEC_PATH,
     load_intraday_spec,
@@ -132,6 +135,54 @@ def finite_number(value: Any, name: str) -> float:
         raise ValueError(f"{name} must be finite.")
 
     return result
+
+
+_SESSION_CALENDAR: SessionCalendar | None = None
+
+
+def session_calendar() -> SessionCalendar:
+    """The exchange-session calendar, loaded once per process."""
+    global _SESSION_CALENDAR
+
+    if _SESSION_CALENDAR is None:
+        _SESSION_CALENDAR = SessionCalendar()
+
+    return _SESSION_CALENDAR
+
+
+def relationship_venues(
+    connection: sqlite3.Connection,
+    *,
+    relationship_id: str,
+) -> tuple[str, str]:
+    """The commodity and FX venues a relationship trades on.
+
+    Raises rather than defaulting: without knowing the venue there is no way
+    to say when the position must be flat, and guessing is how a position
+    ends up held overnight.
+    """
+    row = connection.execute(
+        """
+        SELECT commodity_venue, fx_venue
+        FROM live_instrument_registry
+        WHERE relationship_id = ?
+        """,
+        (relationship_id,),
+    ).fetchone()
+
+    if row is None:
+        raise RuntimeError(
+            "No live_instrument_registry row for "
+            f"{relationship_id!r}; cannot determine its session."
+        )
+
+    return str(row[0]), str(row[1])
+
+
+def overnight_positions_allowed(spec: dict[str, Any]) -> bool:
+    return bool(
+        spec["sessions"]["allow_overnight_positions"]
+    )
 
 
 def finite_positive(value: Any, name: str) -> float:
@@ -1338,6 +1389,36 @@ def process_entry(
         )
         return "rejected"
 
+    # Don't open something the session-close rule will immediately take back
+    # off. Entering inside the blackout pays the spread twice for a position
+    # with no room to work.
+    if not overnight_positions_allowed(spec):
+        commodity_venue, fx_venue = relationship_venues(
+            connection,
+            relationship_id=decision.relationship_id,
+        )
+        blocked, _deadline = session_calendar().entry_blocked(
+            commodity_venue=commodity_venue,
+            fx_venue=fx_venue,
+            as_of=decision.decision_timestamp,
+            block_minutes=float(
+                spec["sessions"][
+                    "block_new_entries_before_market_close_minutes"
+                ]
+            ),
+        )
+        if blocked:
+            reject_or_cancel_entry(
+                connection,
+                decision=decision,
+                status="rejected",
+                reason="session_close_blackout",
+                signal_price=signal_bar.close_price,
+                notional_usd=0.01,
+                expected_cost_bps=0.0,
+            )
+            return "rejected"
+
     state = portfolio_state(
         connection,
         run_id=decision.run_id,
@@ -1672,6 +1753,52 @@ def choose_exit_reason(
     signal_strength: float | None = None
     feature_timestamp = current_bar.timestamp
 
+    # Session close is checked before every other exit and outranks all of
+    # them. The spec has said `allow_overnight_positions: false` from the
+    # start; until now nothing enforced it, and this engine's own heartbeat
+    # advertised the gap as "deferred_to_relationship_exchange_calendar_
+    # scheduler". A position past its flat deadline is not a position to be
+    # reasoned about on its merits — it has to go, whatever the divergence
+    # is doing.
+    if not overnight_positions_allowed(spec):
+        commodity_venue, fx_venue = relationship_venues(
+            connection,
+            relationship_id=position.relationship_id,
+        )
+        must_flatten, deadline = session_calendar().must_be_flat(
+            commodity_venue=commodity_venue,
+            fx_venue=fx_venue,
+            opened_at=position.opened_at,
+            as_of=current_bar.timestamp,
+        )
+        details.update(
+            {
+                "session_flat_deadline_utc": utc_iso(
+                    deadline.deadline_utc
+                ),
+                "session_binding_leg": deadline.binding_leg,
+                "session_commodity_venue": commodity_venue,
+                "session_fx_venue": fx_venue,
+            }
+        )
+        if must_flatten:
+            # Trigger at the deadline itself, not at the current bar.
+            # next_fill_bar looks for a bar strictly after the trigger and at
+            # or before `as_of`; anchoring the trigger to the moving current
+            # bar would push it forward on every cycle and the fill could
+            # never land, leaving the position open past its deadline
+            # indefinitely — the exact failure this rule exists to prevent.
+            # The deadline is a fixed point, so `as_of` advances past it and
+            # the exit fills on the following bar like any other.
+            return (
+                "session_close",
+                deadline.deadline_utc,
+                feature_id,
+                spec_id,
+                signal_strength,
+                details,
+            )
+
     if feature is not None:
         (
             feature_id,
@@ -1843,7 +1970,13 @@ def process_exit(
     position: OpenPosition,
     spec: dict[str, Any],
     as_of: datetime,
-) -> str:
+) -> tuple[str, str | None]:
+    """Returns the outcome and, when one was chosen, the exit reason.
+
+    The reason comes back so callers can report on *why* positions closed —
+    session-close enforcement in particular is worth being able to see in the
+    heartbeat rather than having to infer from the ledger.
+    """
     chosen = choose_exit_reason(
         connection,
         position=position,
@@ -1851,7 +1984,7 @@ def process_exit(
         spec=spec,
     )
     if chosen is None:
-        return "held"
+        return "held", None
 
     (
         reason,
@@ -1891,7 +2024,7 @@ def process_exit(
         timestamp=trigger_timestamp,
     )
     if signal_bar is None:
-        return "waiting_for_fill"
+        return "waiting_for_fill", reason
 
     side = "sell" if position.direction == 1 else "buy"
     current_notional = (
@@ -1926,7 +2059,7 @@ def process_exit(
             status="submitted",
             rejection_reason="waiting_for_next_completed_bar",
         )
-        return "waiting_for_fill"
+        return "waiting_for_fill", reason
 
     exit_notional = (
         position.entry_quantity * fill_bar.open_price
@@ -2025,7 +2158,7 @@ def process_exit(
         ),
     )
 
-    return "closed"
+    return "closed", reason
 
 
 def write_equity_snapshot(
@@ -2197,17 +2330,27 @@ def run_paper_execution(
             "closed": 0,
             "held": 0,
             "waiting_for_fill": 0,
+            "session_close_triggered": 0,
+            "session_close_filled": 0,
         }
         for position in load_open_positions(
             connection, run_id=resolved_run_id
         ):
-            result = process_exit(
+            result, exit_reason = process_exit(
                 connection,
                 position=position,
                 spec=spec,
                 as_of=execution_time,
             )
             exit_counts[result] += 1
+            if exit_reason == "session_close":
+                # Triggered, which is not the same as filled: like every other
+                # exit, a session close fills against the following bar, so a
+                # position can be past its deadline and still open for one
+                # more cycle while that bar arrives.
+                exit_counts["session_close_triggered"] += 1
+                if result == "closed":
+                    exit_counts["session_close_filled"] += 1
 
         entry_counts = {
             "filled": 0,
@@ -2292,7 +2435,15 @@ def run_paper_execution(
                 - before["equity_snapshots"]
             ),
             "session_close_enforcement": (
-                "deferred_to_relationship_exchange_calendar_scheduler"
+                "enforced"
+                if not overnight_positions_allowed(spec)
+                else "disabled_by_spec"
+            ),
+            "session_closes_triggered": (
+                exit_counts["session_close_triggered"]
+            ),
+            "session_closes_filled": (
+                exit_counts["session_close_filled"]
             ),
         }
 

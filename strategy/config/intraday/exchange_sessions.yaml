@@ -1,0 +1,150 @@
+# Per-venue trading sessions, used to enforce the spec's
+# `sessions.allow_overnight_positions: false` and
+# `sessions.block_new_entries_before_market_close_minutes`.
+#
+# WHERE THESE NUMBERS COME FROM
+# -----------------------------
+# Every close/open time below was derived from our own 1-minute bars rather
+# than transcribed from an exchange website or from memory. Method: for each
+# venue, take all weekday 1-minute bars, find the minutes of the day that
+# never carry a bar, and take the longest contiguous run of those. The minute
+# before that run is the session close; the minute after it is the reopen.
+# Times are then expressed in the venue's own timezone so that daylight-saving
+# transitions are handled by the tz database instead of drifting an hour twice
+# a year.
+#
+# The derivation reproduces well-known exchange behaviour, which is the main
+# reason to trust it: COMEX and NYMEX come out at 16:59 close / 18:00 reopen
+# (the CME daily maintenance break), CBOT at 14:19 (grains settle 13:20 CT),
+# ICEUS at 14:19, AMEX at 09:30-15:59 (US cash equity hours). None of that was
+# put in by hand.
+#
+# WHAT THIS DOES NOT MODEL
+# ------------------------
+# Holidays. There is no holiday calendar here, and deliberately so: on a
+# holiday no bars arrive, and every engine path already requires a completed
+# bar before it will enter or mark a position. A missing session therefore
+# degrades into "no trading" on its own. That is a safe failure, not a
+# silent one, but it does mean this file must not be read as a statement
+# about which days an exchange is open.
+#
+# CONFIDENCE
+# ----------
+# `bars_observed` is how much evidence each venue's numbers rest on. ICEEUR
+# and ABAXX are thin enough to be worth re-deriving once more history has
+# accumulated; they are marked `confidence: low` and should be reviewed
+# before anything trades size against them.
+
+version: 1
+
+derivation:
+  source: market_data (1-minute bars)
+  filter: weekdays only (ISO day-of-week 1-5)
+  method: longest contiguous run of minutes carrying no bars
+  derived_on_utc: "2026-08-31"
+
+# The FX leg is what the strategy actually holds, and it trades around the
+# clock — so it has no session close of its own to key off. What it does have
+# is the 17:00 New York interbank rollover, which is also when the trading day
+# is conventionally considered to turn over and when the weekend break starts
+# on a Friday. That is the FX leg's contribution to the flat deadline.
+fx_rollover:
+  timezone: America/New_York
+  time: "17:00"
+
+venues:
+  COMEX:
+    timezone: America/New_York
+    close: "16:59"
+    open: "18:00"
+    bars_observed: 24893
+    confidence: high
+
+  NYMEX:
+    timezone: America/New_York
+    close: "16:59"
+    open: "18:00"
+    bars_observed: 49595
+    confidence: high
+
+  CBOT:
+    timezone: America/New_York
+    close: "14:19"
+    open: "20:00"
+    bars_observed: 27044
+    confidence: high
+
+  ICEUS:
+    timezone: America/New_York
+    close: "14:19"
+    open: "21:00"
+    bars_observed: 24465
+    confidence: high
+
+  CME:
+    timezone: America/New_York
+    close: "16:04"
+    open: "09:30"
+    bars_observed: 10612
+    confidence: high
+
+  AMEX:
+    timezone: America/New_York
+    close: "15:59"
+    open: "09:30"
+    bars_observed: 5392
+    confidence: high
+
+  RUS:
+    timezone: Europe/Moscow
+    close: "23:49"
+    open: "07:07"
+    bars_observed: 10244
+    confidence: medium
+
+  SGX:
+    timezone: Asia/Singapore
+    close: "05:14"
+    open: "07:25"
+    bars_observed: 5035
+    confidence: medium
+
+  ICEEUR:
+    timezone: Europe/London
+    close: "20:12"
+    open: "04:01"
+    bars_observed: 529
+    confidence: low
+
+  ABAXX:
+    timezone: Asia/Singapore
+    close: "23:59"
+    open: "10:03"
+    bars_observed: 3028
+    confidence: low
+
+  # The FX venues and our own derived inverse series trade continuously, so
+  # they contribute no venue close of their own — only the fx_rollover above.
+  FX:
+    timezone: America/New_York
+    continuous: true
+    bars_observed: 28986
+    confidence: high
+
+  FX_IDC:
+    timezone: America/New_York
+    continuous: true
+    bars_observed: 5736
+    confidence: high
+
+  DERIVED:
+    timezone: America/New_York
+    continuous: true
+    bars_observed: 34661
+    confidence: high
+
+# A venue that is not listed above. Refusing to trade is the only safe
+# default: silently treating an unknown venue as always-open is exactly how a
+# position ends up held overnight, which is the thing this file exists to
+# prevent.
+unknown_venue_policy: refuse_entry
