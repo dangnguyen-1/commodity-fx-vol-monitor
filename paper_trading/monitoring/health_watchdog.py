@@ -301,9 +301,35 @@ def main() -> None:
         action="store_true",
         help="Print nothing when every check passes (for cron).",
     )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help=(
+            "Send a test notification and exit. Delivery is worth checking "
+            "deliberately rather than discovering it never worked during "
+            "the outage it was meant to catch."
+        ),
+    )
     args = parser.parse_args()
 
     load_dotenv(PROJECT_ROOT / ".env")
+
+    if args.test:
+        message = (
+            "*commodities pipeline*\n"
+            "[TEST] Watchdog delivery check — "
+            f"{utc_now().isoformat(timespec='seconds')}. "
+            "Nothing is wrong; this confirms alerts reach you."
+        )
+        if not os.environ.get("ALERT_WEBHOOK_URL", "").strip():
+            print("[watchdog] ALERT_WEBHOOK_URL is not set — nothing to test.")
+            raise SystemExit(1)
+        delivered = notify(message)
+        print(
+            "[watchdog] test notification "
+            + ("delivered." if delivered else "FAILED to deliver.")
+        )
+        raise SystemExit(0 if delivered else 1)
     cooldown = float(os.environ.get("ALERT_COOLDOWN_MINUTES", "60"))
 
     connection = sqlite3.connect(args.database, timeout=30.0)
