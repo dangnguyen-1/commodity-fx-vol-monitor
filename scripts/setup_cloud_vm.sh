@@ -53,17 +53,28 @@ sudo apt-get update -y
 # the server itself lives somewhere else.
 sudo apt-get install -y git curl build-essential ufw postgresql-client
 
-echo "=== [2/10] Python 3.11 + venv ==="
-# This codebase was originally developed and tested against Python 3.9,
-# with several fixes made this project for genuine 3.9-only syntax
-# incompatibilities (all of them additive/backwards-compatible, e.g.
-# `from __future__ import annotations`). 3.11 is a safe, well-supported
-# modern default; if anything unexpected breaks, installing 3.9
-# specifically (deadsnakes PPA) and rebuilding the venv against it is
-# the fallback.
-sudo apt-get install -y python3.11 python3.11-venv python3-pip
+echo "=== [2/10] Python + venv ==="
+# Use whatever python3 the distro ships rather than pinning a minor
+# version. The previous `apt-get install python3.11` could not succeed on
+# any Ubuntu this script claims to support — 22.04 ships 3.10, 24.04 ships
+# 3.12 and 26.04 ships 3.14, and none of them carry a python3.11 package.
+# Getting 3.11 specifically would have meant the deadsnakes PPA, which the
+# script never added.
+#
+# The floor is 3.11: the codebase uses `X | Y` type syntax at runtime in
+# places, and eval_type_backport only covers the API's Pydantic models.
+# Verified working end to end on 3.14 (Ubuntu 26.04) — every requirement
+# installs and imports cleanly there.
+sudo apt-get install -y python3 python3-venv python3-pip
+PY_OK=$(python3 -c 'import sys; print(1 if sys.version_info >= (3, 11) else 0)')
+if [ "$PY_OK" != "1" ]; then
+  echo "Need Python 3.11 or newer; this box has $(python3 --version)."
+  echo "Install a newer python3 (deadsnakes PPA on older Ubuntu) and re-run."
+  exit 1
+fi
+echo "Using $(python3 --version)"
 if [ ! -d ".venv" ]; then
-  python3.11 -m venv .venv
+  python3 -m venv .venv
 fi
 source .venv/bin/activate
 pip install --upgrade pip
@@ -77,11 +88,19 @@ pip install -r requirements-dashboard.txt
 # process dies immediately on `import dash`.
 pip install -r dashboard/requirements.txt
 
-echo "=== [3/10] Node.js 20 + npm packages ==="
+echo "=== [3/10] Node.js (>= 20) + npm packages ==="
+# Prefer the distro's own nodejs when it's new enough — 26.04 ships 22.x,
+# which is fine — and only reach for the NodeSource repo when it isn't.
+# Adding a third-party apt repo is worth avoiding when the archive already
+# has what we need.
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d. -f1 | tr -d v)" -lt 20 ]; then
+  sudo apt-get install -y nodejs npm || true
+fi
 if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d. -f1 | tr -d v)" -lt 20 ]; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
+echo "Using node $(node -v)"
 npm install
 sudo npm install -g pm2
 
