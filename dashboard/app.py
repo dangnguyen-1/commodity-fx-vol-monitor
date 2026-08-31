@@ -247,30 +247,32 @@ app.layout = dbc.Container(
         # ── Alert banner ────────────────────────────────────────────────
         html.Div(id="alert-banner", className="mb-3"),
 
-        # ── Tabs ────────────────────────────────────────────────────────
-        dbc.Tabs(
-            [
-                dbc.Tab(label="Volatility",        tab_id="vol"),
-                dbc.Tab(label="Returns & Trends",  tab_id="returns"),
-                dbc.Tab(label="Currencies",        tab_id="fx"),
-                dbc.Tab(label="Correlation",       tab_id="corr"),
-                dbc.Tab(label="Opportunities",     tab_id="opportunities"),
-                dbc.Tab(label="Alerts",            tab_id="alerts-tab"),
-                dbc.Tab(label="Country Exposure",  tab_id="country-exp"),
-                dbc.Tab(label="Trade Flows",       tab_id="trade-flows"),
-                dbc.Tab(label="Risk & News",       tab_id="risk-news"),
-                # Step 6 strategy monitor. Previously a separate Streamlit
-                # app on its own port, which meant two links and two designs
-                # for one project.
-                dbc.Tab(label="Positions",         tab_id="positions"),
-                dbc.Tab(label="Signals",           tab_id="signals"),
-                dbc.Tab(label="Performance",       tab_id="performance"),
-                dbc.Tab(label="Engine",            tab_id="engine"),
-            ],
-            id="tabs",
-            active_tab="vol",
+        # ── Mode switch ─────────────────────────────────────────────────
+        # Thirteen flat tabs asked the reader to work out which ones belong
+        # to market research and which to the trading engine. Splitting them
+        # into two modes makes that structural, so each view holds one idea.
+        dbc.Row(
+            dbc.Col(
+                dbc.RadioItems(
+                    id="mode-switch",
+                    options=[
+                        {"label": "Research", "value": "research"},
+                        {"label": "Paper Trading", "value": "trading"},
+                    ],
+                    value="research",
+                    className="board-mode-switch",
+                    inputClassName="btn-check",
+                    labelClassName="btn board-mode-btn",
+                    labelCheckedClassName="active",
+                    inline=True,
+                ),
+                width="auto",
+            ),
             className="mb-3",
         ),
+
+        # ── Tabs ────────────────────────────────────────────────────────
+        dbc.Tabs(id="tabs", active_tab="vol", className="mb-3"),
         html.Div(id="tab-content"),
 
         # ── Hidden stores ───────────────────────────────────────────────
@@ -360,6 +362,41 @@ def update_summary(json_data):
         banner = []
 
     return cards, banner
+
+
+# Tabs belonging to each mode. Research covers the market; Paper Trading
+# covers the engine acting on it.
+RESEARCH_TABS = [
+    ("Volatility", "vol"),
+    ("Returns & Trends", "returns"),
+    ("Currencies", "fx"),
+    ("Correlation", "corr"),
+    ("Opportunities", "opportunities"),
+    ("Alerts", "alerts-tab"),
+    ("Country Exposure", "country-exp"),
+    ("Trade Flows", "trade-flows"),
+    ("Risk & News", "risk-news"),
+]
+
+TRADING_TABS = [
+    ("Positions", "positions"),
+    ("Signals", "signals"),
+    ("Performance", "performance"),
+    ("Engine", "engine"),
+]
+
+
+@app.callback(
+    Output("tabs", "children"),
+    Output("tabs", "active_tab"),
+    Input("mode-switch", "value"),
+)
+def render_mode(mode):
+    tabs = TRADING_TABS if mode == "trading" else RESEARCH_TABS
+    return (
+        [dbc.Tab(label=label, tab_id=tab_id) for label, tab_id in tabs],
+        tabs[0][1],
+    )
 
 
 @app.callback(

@@ -47,11 +47,9 @@ from paper_trading.dashboard.api_client import (
 )
 
 
-# The banner the spec requires on every screen. Non-negotiable and
-# deliberately hard to miss: this system has never traded real capital and
-# the interface should never let anyone assume otherwise.
+# Required on every strategy screen by the specification.
 PAPER_BANNER = html.Div(
-    "PAPER TRADING ONLY — no real capital at risk",
+    "PAPER TRADING · SIMULATED CAPITAL",
     style={
         "background": UI_ACCENT,
         "color": "#12141a",
@@ -95,9 +93,8 @@ def _panel(title: str, body: Any, subtitle: str | None = None) -> html.Div:
 def _empty(message: str) -> html.Div:
     """An explicit empty state.
 
-    Zero positions is a valid state, not an error -- the spec says so, and a
-    monitor that renders nothing at all leaves the reader unable to tell
-    "nothing happened" from "this panel is broken".
+    Rendered rather than left blank so an empty panel is distinguishable
+    from a broken one.
     """
     return html.Div(
         message,
@@ -167,9 +164,7 @@ def positions_layout() -> Any:
     except ApiClientError as error:
         return html.Div([PAPER_BANNER, _panel(
             "Pipeline API unreachable",
-            _empty(f"{error}. The dashboard reads the API and never the "
-                   "database directly, so nothing is shown rather than "
-                   "something stale."),
+            _empty(f"{error}"),
         )])
 
     equity = (summary.get("latest_equity") or {})
@@ -208,9 +203,8 @@ def positions_layout() -> Any:
         for r in relationships
     }
 
-    # Session deadlines. The spec forbids overnight positions and that is now
-    # enforced, so "how long has this got" is a live constraint rather than a
-    # footnote.
+    # Overnight positions are prohibited, so time remaining is a live
+    # constraint on every open position.
     deadline_rows: list[list[Any]] = []
     try:
         from paper_trading.sessions.session_calendar import (
@@ -262,20 +256,15 @@ def positions_layout() -> Any:
                     f"{p.get('entry_price', 0):.6f}",
                     str(p.get("opened_at_utc", ""))[11:19],
                 ] for p in open_rows],
-            ) if open_rows else _empty(
-                "No open positions. Zero positions is a valid state — the "
-                "strategy holds nothing between signals."
-            ),
+            ) if open_rows else _empty("No open positions."),
         ),
         _panel(
             "Session deadlines",
             _table(
                 ["Relationship", "Flat by", "Remaining", "Binding leg"],
                 deadline_rows,
-            ) if deadline_rows else _empty(
-                "No open positions to flatten."
-            ),
-            subtitle="Positions must be flat before their session closes.",
+            ) if deadline_rows else _empty("No open positions."),
+            subtitle="Positions close before their venue's session ends.",
         ),
         _panel(
             "Closed trades",
@@ -287,7 +276,7 @@ def positions_layout() -> Any:
                     str(p.get("closed_at_utc", ""))[11:19],
                     _coloured(p.get("net_pnl_usd"), " USD"),
                 ] for p in closed_rows[:25]],
-            ) if closed_rows else _empty("Nothing has closed yet."),
+            ) if closed_rows else _empty("No closed trades."),
         ),
     ])
 
@@ -321,10 +310,7 @@ def signals_layout() -> Any:
                     if s.get("approved") else html.Span("no", style={"color": UI_MUTED}),
                     s.get("reason_code") or "—",
                 ] for s in signals[:25]],
-            ) if signals else _empty(
-                "No decisions yet this run. Signals appear once feature "
-                "snapshots complete."
-            ),
+            ) if signals else _empty("No decisions this run."),
         ),
         _panel(
             "Latest feature snapshots",
@@ -346,11 +332,8 @@ def signals_layout() -> Any:
                     if f.get("market_data_complete") else
                     html.Span("no", style={"color": UI_MUTED}),
                 ] for f in features[:25]],
-            ) if features else _empty("No feature snapshots yet."),
-            subtitle=(
-                "A snapshot without a measured transmission beta produces no "
-                "expected impulse, and therefore no signal."
-            ),
+            ) if features else _empty("No feature snapshots."),
+            subtitle="Relationships without a measured beta produce no signal.",
         ),
     ])
 
@@ -371,10 +354,7 @@ def performance_layout() -> Any:
     if not equity:
         return html.Div([
             PAPER_BANNER,
-            _panel("Equity curve", _empty(
-                "No equity snapshots yet. The curve appears once the "
-                "execution engine has run against an active run."
-            )),
+            _panel("Equity", _empty("No equity snapshots.")),
         ])
 
     ordered = sorted(equity, key=lambda e: str(e.get("snapshot_timestamp_utc")))
@@ -464,19 +444,13 @@ def engine_layout() -> Any:
         _panel(
             "Services",
             _table(["Service", "Status", "Last heartbeat"], service_rows),
-            subtitle=(
-                "A stale heartbeat means that stage has stopped, whatever "
-                "the rest of the board shows."
-            ),
+            subtitle="Heartbeat age since each service last reported.",
         ),
         _panel(
             "Strategy loop",
             _table(
                 ["Stage", "Runs", "Failures", "Consecutive", "Last error"],
                 stage_rows,
-            ) if stage_rows else _empty(
-                "No orchestrator heartbeat. The decision loop is not running "
-                "— data collection alone does not evaluate the strategy."
-            ),
+            ) if stage_rows else _empty("Strategy loop not running."),
         ),
     ])
