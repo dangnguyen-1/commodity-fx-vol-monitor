@@ -99,6 +99,7 @@ import views.trade_flows as flow_view
 import views.risk_news as risk_view
 import views.fx as fx_view
 import views.opportunities as opp_view
+import views.strategy as strategy_view
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -258,6 +259,13 @@ app.layout = dbc.Container(
                 dbc.Tab(label="Country Exposure",  tab_id="country-exp"),
                 dbc.Tab(label="Trade Flows",       tab_id="trade-flows"),
                 dbc.Tab(label="Risk & News",       tab_id="risk-news"),
+                # Step 6 strategy monitor. Previously a separate Streamlit
+                # app on its own port, which meant two links and two designs
+                # for one project.
+                dbc.Tab(label="Positions",         tab_id="positions"),
+                dbc.Tab(label="Signals",           tab_id="signals"),
+                dbc.Tab(label="Performance",       tab_id="performance"),
+                dbc.Tab(label="Engine",            tab_id="engine"),
             ],
             id="tabs",
             active_tab="vol",
@@ -377,6 +385,14 @@ def render_tab(active_tab, json_data):
         return flow_view.layout()
     if active_tab == "risk-news":
         return risk_view.layout()
+    if active_tab == "positions":
+        return strategy_view.positions_layout()
+    if active_tab == "signals":
+        return strategy_view.signals_layout()
+    if active_tab == "performance":
+        return strategy_view.performance_layout()
+    if active_tab == "engine":
+        return strategy_view.engine_layout()
 
     hv_dict = historical_volatility(prices, VOL_WINDOWS)
     if active_tab == "vol":
