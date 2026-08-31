@@ -54,6 +54,14 @@ def main() -> None:
     parser.add_argument("--database", type=Path, default=DEFAULT_DATABASE_PATH)
     parser.add_argument("--spec", type=Path, default=DEFAULT_SPEC_PATH)
     parser.add_argument("--hours", type=int, default=24)
+    parser.add_argument(
+        "--start",
+        default=None,
+        help="YYYY-MM-DD (UTC). With --end, reads a fixed window instead "
+             "of the last N hours. Five stored July days cover every "
+             "venue's session, which a recent-hours window may not.",
+    )
+    parser.add_argument("--end", default=None, help="YYYY-MM-DD (UTC)")
     args = parser.parse_args()
 
     load_dotenv(PROJECT_ROOT / ".env")
@@ -84,20 +92,41 @@ def main() -> None:
     hours_seen: set[int] = set()
     with psycopg2.connect(database_url) as connection:
         with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT symbol,
-                       extract(hour from to_timestamp(timestamp)
-                               at time zone 'UTC')::int,
-                       count(*)
-                FROM market_data
-                WHERE timeframe = '1'
-                  AND to_timestamp(timestamp) > now()
-                      - (%s || ' hours')::interval
-                GROUP BY 1, 2
-                """,
-                (args.hours,),
-            )
+            if args.start and args.end:
+                cursor.execute(
+                    """
+                    SELECT symbol,
+                           extract(hour from to_timestamp(timestamp)
+                                   at time zone 'UTC')::int,
+                           count(*)
+                    FROM market_data
+                    WHERE timeframe = '1'
+                      AND to_timestamp(timestamp) >= %s::date
+                      AND to_timestamp(timestamp) < (%s::date + 1)
+                    GROUP BY 1, 2
+                    """,
+                    (args.start, args.end),
+                )
+                days = 1 + (
+                    __import__("datetime").date.fromisoformat(args.end)
+                    - __import__("datetime").date.fromisoformat(args.start)
+                ).days
+            else:
+                cursor.execute(
+                    """
+                    SELECT symbol,
+                           extract(hour from to_timestamp(timestamp)
+                                   at time zone 'UTC')::int,
+                           count(*)
+                    FROM market_data
+                    WHERE timeframe = '1'
+                      AND to_timestamp(timestamp) > now()
+                          - (%s || ' hours')::interval
+                    GROUP BY 1, 2
+                    """,
+                    (args.hours,),
+                )
+                days = max(1, args.hours // 24)
             for symbol, hour, count in cursor.fetchall():
                 counts[(str(symbol), int(hour))] += int(count)
                 hours_seen.add(int(hour))
@@ -105,9 +134,14 @@ def main() -> None:
     if not hours_seen:
         raise SystemExit("No 1-minute bars in that window.")
 
+    window = (
+        f"{args.start}..{args.end} ({days} days)"
+        if args.start and args.end
+        else f"the last {args.hours}h"
+    )
     print(
-        f"\nCoverage over the last {args.hours}h "
-        f"({len(hours_seen)} UTC hours observed). "
+        f"\nCoverage over {window} "
+        f"- {len(hours_seen)} UTC hours observed. "
         f"Spec requires {required:.0f}% of the feature window."
     )
     print(
@@ -116,7 +150,10 @@ def main() -> None:
     )
 
     ordered_hours = sorted(hours_seen)
-    threshold_bars = required / 100.0 * 60.0
+    # Counts are pooled across every day in the window, so the bar target
+    # scales with the number of days. Without this a five-day window looks
+    # like five times the coverage it actually has.
+    threshold_bars = required / 100.0 * 60.0 * days
 
     header = f"{'relationship':34} " + "".join(
         str(h % 10) for h in ordered_hours
