@@ -37,7 +37,7 @@ def _fmt_usd(value: float) -> str:
 def layout() -> html.Div:
     return html.Div([
         html.P(
-            "Click a country to see its real bilateral partners — who it "
+            "Click a country to see its bilateral partners: who it "
             "sends to and who it buys from. “N/A” means that side only "
             "reports a world total to UN Comtrade, not named countries.",
             className="text-muted small mb-2",
@@ -147,7 +147,7 @@ def build_overview(
     if exporters.empty and importers.empty:
         return html.Div(
             "No trade flow data available for this commodity. Data loads "
-            "from UN Comtrade — try again or check your connection.",
+            "from UN Comtrade. Try again or check your connection.",
             className="text-muted",
         )
 

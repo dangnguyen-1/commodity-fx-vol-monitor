@@ -141,23 +141,23 @@ def build_opportunity_board(
             if confluence:
                 flagged_count += 1
 
-            call = "Bullish" if commodity_dir > 0 else ("Bearish" if commodity_dir < 0 else "—")
+            call = "Bullish" if commodity_dir > 0 else ("Bearish" if commodity_dir < 0 else "-")
             call_color = UI_GREEN if commodity_dir > 0 else (UI_RED if commodity_dir < 0 else UI_MUTED)
 
             rows.append(html.Tr([
                 html.Td(name),
                 html.Td(currency_name, className="text-muted"),
                 html.Td(
-                    f"{'+' if commodity_5d > 0 else ''}{commodity_5d:.2f}%" if not np.isnan(commodity_5d) else "—",
+                    f"{'+' if commodity_5d > 0 else ''}{commodity_5d:.2f}%" if not np.isnan(commodity_5d) else "-",
                     style={"textAlign": "right"},
                 ),
                 html.Td(
-                    f"{vol_ratio*100:.0f}%" if not np.isnan(vol_ratio) else "—",
+                    f"{vol_ratio*100:.0f}%" if not np.isnan(vol_ratio) else "-",
                     style={"textAlign": "right", "color": call_color if vol_elevated else "inherit"},
                 ),
                 html.Td(f"{corr_value:+.2f}", style={"textAlign": "right"}),
                 html.Td(
-                    "Holding" if relationship_holds else "—",
+                    "Holding" if relationship_holds else "-",
                     style={"textAlign": "center", "color": UI_GREEN if relationship_holds else UI_MUTED},
                 ),
                 html.Td(
@@ -167,7 +167,7 @@ def build_opportunity_board(
                 html.Td(call, style={"textAlign": "center", "color": call_color}),
                 html.Td(
                     dbc.Badge("CONFLUENCE", color="warning") if confluence
-                    else dbc.Badge("—", color="secondary"),
+                    else dbc.Badge("-", color="secondary"),
                     style={"textAlign": "center"},
                 ),
             ], className="row-flash" if confluence else "", style={"background": "var(--accent-dim)"} if confluence else {}))
@@ -184,12 +184,12 @@ def build_opportunity_board(
 
     summary = (
         dbc.Alert(
-            f"{flagged_count} confluence signal{'s' if flagged_count != 1 else ''} — "
+            f"{flagged_count} confluence signal{'s' if flagged_count != 1 else ''}: "
             "volatility, correlation, and sentiment all pointing the same way.",
             color="warning", className="py-2 mb-3",
         )
         if flagged_count > 0
-        else dbc.Alert("No confluence right now — nothing has all three signals aligned.",
+        else dbc.Alert("No confluence. Nothing has all three signals aligned.",
                         color="success", className="py-2 mb-3")
     )
 
@@ -197,7 +197,7 @@ def build_opportunity_board(
     scored = len(sentiment)
     if scored < len(NAMES):
         pending_note = html.Div(
-            f"Sentiment scored for {scored}/{len(NAMES)} commodities so far — "
+            f"Sentiment scored for {scored}/{len(NAMES)} commodities. "
             "the rest read as neutral (0.0) until their news fetch completes.",
             className="text-muted small mb-2",
         )
@@ -206,7 +206,7 @@ def build_opportunity_board(
     if thin_data_used:
         thin_data_note = html.Div(
             "* No live TradingView feed exists for this currency, and its Yahoo "
-            "Finance data is thin — a large share of daily closes just repeat the "
+            "Finance data is thin. A large share of daily closes repeat the "
             "prior day's value rather than reflecting a fresh live quote. Treat "
             "its correlation/volatility numbers here as directionally suggestive, "
             "not precise.",

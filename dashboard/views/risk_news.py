@@ -84,10 +84,10 @@ def build_risk_overview(
             _component_bar("News sentiment", max(1, min(10, 5.5 - news_sentiment / 2)), 10,
                            note=f"{news_sentiment:+.1f} tone"),
             _component_bar("Volatility", min(10, max(1, round(3 + vol_adj * 4, 1))), 10,
-                           note=f"HV30: {hv30:.0f}%" if hv30 else "—"),
+                           note=f"HV30: {hv30:.0f}%" if hv30 else "-"),
             html.Div(
                 "Geopolitical blends a live World Bank baseline with a static, "
-                "dated conflict/sanctions list — not a live feed like the other two.",
+                "dated conflict and sanctions list, not a live feed.",
                 className="text-muted",
                 style={"fontSize": "0.7rem", "marginTop": "10px"},
             ),
@@ -107,7 +107,7 @@ def build_news_feed(articles: list[dict]) -> html.Div:
     if not articles:
         if news_service_unreachable():
             return html.Div(
-                "News service (GDELT) is unreachable right now — retrying "
+                "News service (GDELT) is unreachable. Retrying "
                 "automatically in the background. This is a live third-party "
                 "dependency, not a broken tab.",
                 className="text-muted small",

@@ -49,7 +49,7 @@ from paper_trading.dashboard.api_client import (
 
 # Required on every strategy screen by the specification.
 PAPER_BANNER = html.Div(
-    "PAPER TRADING · SIMULATED CAPITAL",
+    "PAPER TRADING / SIMULATED CAPITAL",
     style={
         "background": UI_ACCENT,
         "color": "#12141a",
@@ -66,6 +66,22 @@ PAPER_BANNER = html.Div(
 
 def _client() -> ApiClient:
     return ApiClient()
+
+
+def _label(relationship_id: str | None) -> str:
+    """Turn a relationship id into something readable.
+
+    Ids are built for uniqueness, not for reading: the commodity, the
+    pricing currency and the venue-qualified FX symbol joined by double
+    underscores. "Cotton__USD__FX:EURUSD" becomes "Cotton / EURUSD", which
+    is what a reader needs: the driver and the pair actually traded.
+    """
+    if not relationship_id:
+        return "n/a"
+    parts = str(relationship_id).split("__")
+    commodity = parts[0]
+    pair = parts[-1].split(":")[-1] if len(parts) > 1 else ""
+    return f"{commodity} / {pair}" if pair else commodity
 
 
 def _panel(title: str, body: Any, subtitle: str | None = None) -> html.Div:
@@ -129,7 +145,7 @@ def _table(columns: list[str], rows: list[list[Any]]) -> Any:
 
 def _coloured(value: float | None, suffix: str = "") -> html.Span:
     if value is None:
-        return html.Span("—", style={"color": UI_MUTED})
+        return html.Span("-", style={"color": UI_MUTED})
     colour = UI_GREEN if value > 0 else (UI_RED if value < 0 else UI_MUTED)
     return html.Span(f"{value:+,.2f}{suffix}", style={"color": colour})
 
@@ -188,7 +204,7 @@ def positions_layout() -> Any:
         ], className="flip-tile"), xs=6, md=3, className="mb-2"),
         dbc.Col(html.Div([
             html.Div("Run", className="board-subtitle"),
-            html.Div(str(run.get("run_id", "—")).split("-")[-1],
+            html.Div(str(run.get("run_id", "")).split("-")[-1] or "n/a",
                      style={"color": UI_BLUE, "fontSize": "1.3rem"}),
         ], className="flip-tile"), xs=6, md=3, className="mb-2"),
     ], className="mb-2")
@@ -234,7 +250,7 @@ def positions_layout() -> Any:
             remaining = (deadline.deadline_utc - now).total_seconds() / 60
             colour = UI_RED if remaining <= 30 else UI_TEXT
             deadline_rows.append([
-                position.get("relationship_id"),
+                _label(position.get("relationship_id")),
                 deadline.deadline_utc.strftime("%H:%M UTC"),
                 html.Span(f"{remaining:.0f}m", style={"color": colour}),
                 deadline.binding_leg.replace("_", " "),
@@ -250,7 +266,7 @@ def positions_layout() -> Any:
             _table(
                 ["Relationship", "Dir", "Size USD", "Entry", "Opened"],
                 [[
-                    p.get("relationship_id"),
+                    _label(p.get("relationship_id")),
                     "long" if int(p.get("direction", 0)) > 0 else "short",
                     f"{p.get('position_size_usd', 0):,.0f}",
                     f"{p.get('entry_price', 0):.6f}",
@@ -271,8 +287,8 @@ def positions_layout() -> Any:
             _table(
                 ["Relationship", "Exit reason", "Held", "Net P&L"],
                 [[
-                    p.get("relationship_id"),
-                    p.get("exit_reason") or "—",
+                    _label(p.get("relationship_id")),
+                    p.get("exit_reason") or "-",
                     str(p.get("closed_at_utc", ""))[11:19],
                     _coloured(p.get("net_pnl_usd"), " USD"),
                 ] for p in closed_rows[:25]],
@@ -301,14 +317,14 @@ def signals_layout() -> Any:
             _table(
                 ["Relationship", "Type", "Mode", "Strength", "Approved", "Reason"],
                 [[
-                    s.get("relationship_id"),
+                    _label(s.get("relationship_id")),
                     s.get("decision_type"),
                     s.get("signal_mode"),
                     f"{s.get('signal_strength'):.3f}"
-                    if s.get("signal_strength") is not None else "—",
+                    if s.get("signal_strength") is not None else "-",
                     html.Span("yes", style={"color": UI_GREEN})
                     if s.get("approved") else html.Span("no", style={"color": UI_MUTED}),
-                    s.get("reason_code") or "—",
+                    s.get("reason_code") or "-",
                 ] for s in signals[:25]],
             ) if signals else _empty("No decisions this run."),
         ),
@@ -318,15 +334,15 @@ def signals_layout() -> Any:
                 ["Relationship", "Impulse", "Expected FX", "Observed FX",
                  "Divergence", "Coverage", "Complete"],
                 [[
-                    f.get("relationship_id"),
+                    _label(f.get("relationship_id")),
                     f"{f.get('commodity_impulse'):.3f}"
-                    if f.get("commodity_impulse") is not None else "—",
+                    if f.get("commodity_impulse") is not None else "-",
                     f"{f.get('expected_fx_impulse'):.3f}"
-                    if f.get("expected_fx_impulse") is not None else "—",
+                    if f.get("expected_fx_impulse") is not None else "-",
                     f"{f.get('observed_fx_impulse'):.3f}"
-                    if f.get("observed_fx_impulse") is not None else "—",
+                    if f.get("observed_fx_impulse") is not None else "-",
                     f"{f.get('divergence_score'):.3f}"
-                    if f.get("divergence_score") is not None else "—",
+                    if f.get("divergence_score") is not None else "-",
                     f"{f.get('market_window_coverage_pct', 0):.1f}%",
                     html.Span("yes", style={"color": UI_GREEN})
                     if f.get("market_data_complete") else
@@ -436,7 +452,7 @@ def engine_layout() -> Any:
                           style={"color": UI_RED
                                  if stage.get("consecutive_failures")
                                  else UI_MUTED}),
-                (stage.get("last_error") or "—")[:70],
+                (stage.get("last_error") or "-")[:70],
             ])
 
     return html.Div([

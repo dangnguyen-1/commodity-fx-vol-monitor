@@ -155,7 +155,7 @@ def build_map(
         color_continuous_scale=colorscale,
         color_continuous_midpoint=zmid,
         labels={"value": label},
-        title=f"{commodity} — {label}",
+        title=f"{commodity}: {label}",
     )
     fig.update_layout(
         paper_bgcolor=UI_BG,
@@ -257,7 +257,7 @@ def build_country_detail(
             )
         if shock_items:
             sections.append(html.Div([
-                html.H6("Trade balance impact — +10% price shock", className="text-muted mb-2"),
+                html.H6("Trade balance impact, +10% price shock", className="text-muted mb-2"),
                 *shock_items,
             ], className="mb-3"))
 
@@ -290,7 +290,7 @@ def build_country_detail(
             )
         if corr_items:
             sections.append(html.Div([
-                html.H6(f"{currency_name} — FX correlations with commodities (1Y)", className="text-muted mb-2"),
+                html.H6(f"{currency_name}: FX correlations with commodities (1Y)", className="text-muted mb-2"),
                 *corr_items,
             ], className="mb-3"))
 

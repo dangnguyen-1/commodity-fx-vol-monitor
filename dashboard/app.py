@@ -179,7 +179,7 @@ def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
             html.Div([
                 html.Div(name, className="tile-label"),
                 html.Div(
-                    f"{px_val:,.2f}" if not np.isnan(px_val) else "—",
+                    f"{px_val:,.2f}" if not np.isnan(px_val) else "-",
                     className="tile-price",
                 ),
                 html.Div(
@@ -189,7 +189,7 @@ def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
                             _color_return(r1d),
                         ),
                         html.Span(
-                            f" {'+' if r1d > 0 else ''}{r1d:.2f}%" if not np.isnan(r1d) else " —",
+                            f" {'+' if r1d > 0 else ''}{r1d:.2f}%" if not np.isnan(r1d) else " -",
                             style={"color": _color_return(r1d)},
                         ),
                     ],
@@ -354,7 +354,7 @@ def update_summary(json_data):
             for a in alerts
         ]
         banner = dbc.Alert(
-            [html.Span("GATE CHANGE — VOLATILITY", className="board-alert-label"), *items],
+            [html.Span("GATE CHANGE: VOLATILITY", className="board-alert-label"), *items],
             color="warning",
             className="board-alert py-2 mb-0",
         )
@@ -559,27 +559,27 @@ def _render_returns(prices: pd.DataFrame, hv_dict: dict) -> html.Div:
                 [
                     html.Td(name),
                     html.Td(
-                        f"{'+' if r1d > 0 else ''}{r1d:.2f}%" if not np.isnan(r1d) else "—",
+                        f"{'+' if r1d > 0 else ''}{r1d:.2f}%" if not np.isnan(r1d) else "-",
                         style={"color": _color_return(r1d), "textAlign": "right"},
                     ),
                     html.Td(
-                        f"{'+' if r5d > 0 else ''}{r5d:.2f}%" if not np.isnan(r5d) else "—",
+                        f"{'+' if r5d > 0 else ''}{r5d:.2f}%" if not np.isnan(r5d) else "-",
                         style={"color": _color_return(r5d), "textAlign": "right"},
                     ),
                     html.Td(
-                        f"{'+' if r30d > 0 else ''}{r30d:.2f}%" if not np.isnan(r30d) else "—",
+                        f"{'+' if r30d > 0 else ''}{r30d:.2f}%" if not np.isnan(r30d) else "-",
                         style={"color": _color_return(r30d), "textAlign": "right"},
                     ),
                     html.Td(
-                        f"{ma20_val:,.2f}" if not np.isnan(ma20_val) else "—",
+                        f"{ma20_val:,.2f}" if not np.isnan(ma20_val) else "-",
                         style={"textAlign": "right"},
                     ),
                     html.Td(
-                        f"{ma50_val:,.2f}" if not np.isnan(ma50_val) else "—",
+                        f"{ma50_val:,.2f}" if not np.isnan(ma50_val) else "-",
                         style={"textAlign": "right"},
                     ),
                     html.Td(
-                        f"{hv_val:.1f}%" if not np.isnan(hv_val) else "—",
+                        f"{hv_val:.1f}%" if not np.isnan(hv_val) else "-",
                         style={"textAlign": "right"},
                     ),
                     html.Td(
@@ -720,9 +720,9 @@ def _render_correlation(prices: pd.DataFrame) -> html.Div:
         html.H6("Relationship History (Rolling, Last 5 Years)", className="text-muted mb-2 mt-4"),
         html.P(
             "How this specific pair's beta, correlation, and R² have moved over "
-            "the last five years — a single current snapshot can't show a "
+            "the last five years. A single current snapshot cannot show a "
             "relationship strengthening or decaying, this can. A shorter window "
-            "reacts fast and is noisy; a longer one is smooth and stable — "
+            "reacts fast and is noisy; a longer one is smooth and stable, "
             "neither is \"more correct.\"",
             className="text-muted small mb-2",
         ),
@@ -840,7 +840,7 @@ def update_relationship_history(commodity, iso3, window_key, cached_raw):
         showlegend=False,
         margin={"l": 50, "r": 20, "t": 40, "b": 30},
         title={
-            "text": f"{commodity} vs {currency_name} — {window_label.lower()} rolling, last 5 years",
+            "text": f"{commodity} vs {currency_name}: {window_label.lower()} rolling, last 5 years",
             "font": {"family": "Big Shoulders Display, sans-serif", "size": 16},
         },
     )
@@ -937,15 +937,15 @@ def _render_alerts(hv_dict: dict) -> html.Div:
                     html.Td(group, className="text-muted"),
                     html.Td(f"{threshold:.1f}%", style={"textAlign": "right"}),
                     html.Td(
-                        f"{hv30:.1f}%" if not np.isnan(hv30) else "—",
+                        f"{hv30:.1f}%" if not np.isnan(hv30) else "-",
                         style={"textAlign": "right", "color": UI_ACCENT if triggered else "inherit"},
                     ),
                     html.Td(
-                        f"{hv60:.1f}%" if not np.isnan(hv60) else "—",
+                        f"{hv60:.1f}%" if not np.isnan(hv60) else "-",
                         style={"textAlign": "right"},
                     ),
                     html.Td(
-                        f"{hv90:.1f}%" if not np.isnan(hv90) else "—",
+                        f"{hv90:.1f}%" if not np.isnan(hv90) else "-",
                         style={"textAlign": "right"},
                     ),
                     html.Td(status, style={"textAlign": "center"}),

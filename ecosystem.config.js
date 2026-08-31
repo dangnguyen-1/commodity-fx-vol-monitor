@@ -151,22 +151,12 @@ module.exports = {
       restart_delay: 3000,
     },
     {
-      // The Dash dashboard itself.
+      // The dashboard: market research and the Step 6 strategy monitor in
+      // one app, split by a mode switch rather than by port. The monitor
+      // was a separate Streamlit process until it was merged here.
       name: "dashboard",
       script: "dashboard/app.py",
       interpreter: ".venv/bin/python3",
-      autorestart: true,
-      restart_delay: 3000,
-    },
-    {
-      // The Step 6 strategy monitor (paper_trading/dashboard/app.py) —
-      // a separate Streamlit app, distinct from the Dash research
-      // dashboard above. Needs the wrapper script since `streamlit run`
-      // doesn't resolve package-relative imports from CWD the way
-      // `python -m` does.
-      name: "strategy-monitor",
-      script: "scripts/run_dashboard_streamlit.sh",
-      interpreter: "bash",
       autorestart: true,
       restart_delay: 3000,
     },

@@ -86,7 +86,7 @@ def build_summary_cards(
                 html.Div([
                     html.Div(name, className="tile-label"),
                     html.Div(
-                        f"{px_val:.4f}" if not np.isnan(px_val) else "—",
+                        f"{px_val:.4f}" if not np.isnan(px_val) else "-",
                         className="tile-price",
                     ),
                     html.Div(
@@ -95,7 +95,7 @@ def build_summary_cards(
                                 "up" if r1d > 0 else ("down" if r1d < 0 else "flat"), color,
                             ),
                             html.Span(
-                                f" {'+' if r1d > 0 else ''}{r1d:.2f}%" if not np.isnan(r1d) else " —",
+                                f" {'+' if r1d > 0 else ''}{r1d:.2f}%" if not np.isnan(r1d) else " -",
                                 style={"color": color},
                             ),
                         ],
