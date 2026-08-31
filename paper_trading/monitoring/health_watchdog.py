@@ -277,7 +277,13 @@ def notify(message: str) -> bool:
     request = urllib.request.Request(
         url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            # Discord sits behind Cloudflare, which rejects urllib's default
+            # "Python-urllib/3.x" agent with a 403 before the request ever
+            # reaches the webhook. Slack does not care either way.
+            "User-Agent": "commodities-health-watchdog/1.0",
+        },
         method="POST",
     )
     try:
