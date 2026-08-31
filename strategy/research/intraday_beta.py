@@ -43,6 +43,9 @@ from pathlib import Path
 REPLAY_RUN_ID = "commodity_fx_intraday-threshold-replay"
 
 
+MIN_OBSERVATIONS = 200
+
+
 def ols(xs: list[float], ys: list[float]) -> tuple[float, float] | None:
     n = len(xs)
     if n < 10:
@@ -121,9 +124,16 @@ def main() -> None:
     print("-" * len(header))
 
     results = []
+    thin = []
     for relationship_id, (xs, ys) in sorted(grouped.items()):
         fit = ols(xs, ys)
         if fit is None:
+            continue
+        if len(xs) < MIN_OBSERVATIONS:
+            # A beta from a few dozen points is noise wearing a number's
+            # clothing. Reported separately rather than ranked alongside
+            # estimates with thousands of observations behind them.
+            thin.append((relationship_id, len(xs), fit[0], fit[1]))
             continue
         beta, r2 = fit
         daily_row = daily.get(relationship_id)
@@ -150,6 +160,13 @@ def main() -> None:
         print(
             f"{relationship_id[:34]:34} {n:5} {beta:11.3f} {r2:7.4f} {db} {rt}"
         )
+
+    if thin:
+        print(
+            f"\nBelow {MIN_OBSERVATIONS} observations - too thin to read:"
+        )
+        for relationship_id, n, beta, r2 in sorted(thin, key=lambda t: -t[1]):
+            print(f"  {relationship_id[:34]:34} {n:5} {beta:11.3f} {r2:7.4f}")
 
     betas = [r[2] for r in results]
     ratios = [r[5] for r in results if r[5] is not None]

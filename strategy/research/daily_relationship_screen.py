@@ -155,9 +155,18 @@ def screen_relationship(
     fx_symbol: str,
     window_days: int,
     r2_gate: float,
+    invert_fx: bool = False,
 ) -> Screen:
     commodity = log_returns(load_daily(cursor, commodity_symbol))
     fx = log_returns(load_daily(cursor, fx_symbol))
+
+    # The registry stores the *source* quote. Seven relationships trade its
+    # inverse (FX:USDCAD stored, DERIVED:CADUSD traded), and a log return
+    # inverts by negation. Without this the sign of every CAD relationship
+    # comes out backwards relative to the convention the strategy actually
+    # uses -- which is how oil-up-strengthens-CAD read as a negative beta.
+    if invert_fx:
+        fx = {day: -value for day, value in fx.items()}
 
     days = sorted(set(commodity) & set(fx))
     xs = [commodity[d] for d in days]
@@ -262,7 +271,8 @@ def main() -> None:
     sqlite_connection = sqlite3.connect(args.database)
     registry = sqlite_connection.execute(
         """
-        SELECT relationship_id, live_commodity_symbol, live_fx_symbol, active
+        SELECT relationship_id, live_commodity_symbol, live_fx_symbol,
+               fx_price_transform, active
         FROM live_instrument_registry
         ORDER BY relationship_id
         """
@@ -273,7 +283,7 @@ def main() -> None:
     results: list[Screen] = []
     try:
         with postgres.cursor() as cursor:
-            for relationship_id, commodity, fx, active in registry:
+            for relationship_id, commodity, fx, transform, active in registry:
                 if not int(active):
                     continue
                 results.append(
@@ -284,6 +294,7 @@ def main() -> None:
                         fx_symbol=str(fx),
                         window_days=args.window_days,
                         r2_gate=args.r2_gate,
+                        invert_fx=str(transform) == "inverse",
                     )
                 )
     finally:
