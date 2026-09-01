@@ -200,8 +200,15 @@ class Orchestrator:
                 )
             return None
 
+        had_alerted = stage.consecutive_failures >= FAILURE_ALERT_THRESHOLD
         stage.succeeded(details)
         self._ran_this_cycle.add(name)
+        if had_alerted:
+            # Close the alert this stage raised. Without this a fixed
+            # problem keeps reading as critical forever, and an alert
+            # channel that reports resolved problems is one people stop
+            # reading.
+            self.resolve_alert(f"{name}_stage_failing")
         return details
 
     def connect(self) -> sqlite3.Connection:
@@ -270,6 +277,33 @@ class Orchestrator:
             # An alert that cannot be written must not crash the loop either.
             print(
                 f"[orchestrator] could not record alert: {error}",
+                flush=True,
+            )
+
+    def resolve_alert(self, alert_type: str) -> None:
+        try:
+            with self.connect() as connection:
+                connection.execute(
+                    """
+                    UPDATE system_alerts
+                    SET resolved = 1, resolved_at_utc = ?
+                    WHERE alert_type = ?
+                      AND service_name = ?
+                      AND resolved = 0
+                    """,
+                    (
+                        utc_iso(utc_now()),
+                        alert_type,
+                        ORCHESTRATOR_SERVICE_NAME,
+                    ),
+                )
+            print(
+                f"[orchestrator] resolved alert {alert_type}",
+                flush=True,
+            )
+        except Exception as error:  # noqa: BLE001
+            print(
+                f"[orchestrator] could not resolve alert: {error}",
                 flush=True,
             )
 
