@@ -6,12 +6,15 @@
 //   pm2 status
 //   pm2 logs <name>
 
-// NOTE: market-sync is deliberately NOT here. Its pm2 cron_restart silently
+// NOTE: market-sync and health-watchdog are deliberately NOT here. Its pm2 cron_restart silently
 // stopped firing after running fine for a day, leaving the engine's SQLite
 // copy three hours behind a perfectly healthy Postgres. The job itself takes
 // 0.4 seconds and works when invoked directly, so this was pm2's scheduler
 // rather than the script. It now runs from the user crontab, which has been
 // reliable for the cost reminders.
+//
+// health-watchdog followed it for a stronger reason: a monitor scheduled by
+// the same mechanism that just failed cannot report that it has stopped.
 
 module.exports = {
   apps: [
@@ -108,20 +111,6 @@ module.exports = {
       autorestart: true,
       restart_delay: 5000,
       max_restarts: 20,
-    },
-    {
-      // Checks that everything above is actually working and notifies when
-      // it is not (see paper_trading/monitoring/health_watchdog.py). Every
-      // serious failure this project has had was silent — the Comtrade
-      // loader reporting success while committing nothing for six weeks,
-      // three separate jobs that were never scheduled — so this is the
-      // process whose whole job is to notice. Exits non-zero while
-      // something is wrong; that is the pipeline failing, not this.
-      name: "health-watchdog",
-      script: "scripts/health_watchdog.sh",
-      interpreter: "bash",
-      autorestart: false,
-      cron_restart: "*/5 * * * *",
     },
     {
       // Nightly pg_dump with rotation (see scripts/backup_database.sh).
