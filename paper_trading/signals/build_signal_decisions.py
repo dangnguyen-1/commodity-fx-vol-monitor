@@ -333,6 +333,18 @@ def load_complete_candidates(
           AND f.feature_timestamp_utc = ?
           AND f.market_data_complete = 1
           AND r.active = 1
+          -- A relationship with no measured transmission_beta produces no
+          -- expected impulse and therefore no divergence, by design since
+          -- v0.3.0. Those snapshots are complete and legitimate; they
+          -- simply carry nothing to evaluate. Excluding them here keeps
+          -- them away from finite_number(), which raises on NULL.
+          --
+          -- This only started biting once coverage improved enough for an
+          -- unmeasured relationship to produce a complete snapshot, which
+          -- is why it surfaced overnight rather than on the day the beta
+          -- change shipped.
+          AND f.expected_fx_impulse IS NOT NULL
+          AND f.divergence_score IS NOT NULL
         ORDER BY f.relationship_id
         """,
         (
