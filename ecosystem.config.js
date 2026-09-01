@@ -6,6 +6,13 @@
 //   pm2 status
 //   pm2 logs <name>
 
+// NOTE: market-sync is deliberately NOT here. Its pm2 cron_restart silently
+// stopped firing after running fine for a day, leaving the engine's SQLite
+// copy three hours behind a perfectly healthy Postgres. The job itself takes
+// 0.4 seconds and works when invoked directly, so this was pm2's scheduler
+// rather than the script. It now runs from the user crontab, which has been
+// reliable for the cost reminders.
+
 module.exports = {
   apps: [
     {
@@ -89,19 +96,6 @@ module.exports = {
       interpreter: "bash",
       autorestart: false,
       cron_restart: "0 6 * * *",
-    },
-    {
-      // Normalises completed 1-minute bars from the collector's Postgres
-      // into the paper-trading SQLite database. The script existed but was
-      // never scheduled — the same failure mode as news-sync and the daily
-      // bars — which is why /health showed market_data_adapter frozen at
-      // July. The strategy orchestrator below cannot build a feature
-      // snapshot without these rows, so this runs first and often.
-      name: "market-sync",
-      script: "scripts/sync_market_bars.sh",
-      interpreter: "bash",
-      autorestart: false,
-      cron_restart: "* * * * *",
     },
     {
       // The strategy's decision loop — features and signals every five
