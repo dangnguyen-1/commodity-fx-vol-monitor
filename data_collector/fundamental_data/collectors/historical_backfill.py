@@ -285,9 +285,13 @@ def job_is_complete(job: RequestJob) -> bool:
     # run closes that to a day, and also picks up the UN's revisions to the
     # months in that window.
     #
-    # One batch out of seventeen, so roughly 160 of the 2,700 requests a full
-    # pass makes, against a 3,500/day ceiling across the configured keys.
-    # Every earlier year stays checkpointed and free.
+    # One batch out of seventeen: 52 requests of the 884 a full pass makes,
+    # against a 3,500/day ceiling across the configured keys. Every earlier
+    # year stays checkpointed and free.
+    #
+    # (The checkpoint directory holds far more files than there are jobs,
+    # left by earlier commodity configurations. Count the jobs, not the
+    # files, when sizing this.)
     if END_PERIOD in job.periods:
         return False
 
