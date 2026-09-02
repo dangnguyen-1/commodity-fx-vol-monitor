@@ -5,9 +5,9 @@ Run: python3 app.py
 Then open http://localhost:8050 in your browser.
 
 Set DATA_SOURCE in config.py:
-  "yahoo"     — free Yahoo Finance data, no API key needed (default)
-  "bloomberg" — Bloomberg Terminal via blpapi (Terminal must be running)
-  "mock"      — synthetic random-walk data for offline testing
+  "pipeline"  the project's own TradingView and Comtrade feeds (default)
+  "yahoo"     free Yahoo Finance data, no API key needed
+  "mock"      synthetic random-walk data for offline testing
 
 -------------------------------------------------------------------------
 DIRECTION CONTRACT (impeccable seed a29f278f, direction:
@@ -28,8 +28,8 @@ context as gate-board-style panels — leaving convinced this is a real
 cross-domain instrument, not a chart-library demo.
 
 FIRST VIEWPORT: Board header (title, live dot, mono "updated" readout,
-refresh) -> one flip tile per commodity (name/price/return/HV, alert
-→ gate-strip tabs → tab content.
+refresh), then one flip tile per commodity (name/price/return/HV, with
+breached tiles lit amber), then the gate-strip tabs and tab content.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with
 the finish review, the verdict, and DESIGN.md.
@@ -360,15 +360,29 @@ def update_summary(json_data):
     # Alert banner
     alerts = check_alerts(hv_dict, ALERT_THRESHOLDS, window=30)
     if alerts:
-        items = [
-            html.Span(
-                f"{a['name']}: {a['current_vol']}% (threshold {a['threshold']}%)",
-                className="me-3",
+        # Separators are written into the text rather than left to CSS
+        # margins alone. The margins render correctly, but the text content
+        # ran together as "VOLATILITY ALERTCoffee: 41.4%..." when copied or
+        # read by a screen reader.
+        items = []
+        for index, a in enumerate(alerts):
+            if index:
+                items.append(
+                    html.Span(" | ", className="me-2 ms-1 text-muted")
+                )
+            items.append(
+                html.Span(
+                    f"{a['name']} {a['current_vol']}% "
+                    f"(Threshold {a['threshold']}%)",
+                    className="me-2",
+                )
             )
-            for a in alerts
-        ]
         banner = dbc.Alert(
-            [html.Span("VOLATILITY ALERT", className="board-alert-label"), *items],
+            [
+                html.Span("VOLATILITY ALERT", className="board-alert-label"),
+                html.Span("  ", className="me-2"),
+                *items,
+            ],
             color="warning",
             className="board-alert py-2 mb-0",
         )

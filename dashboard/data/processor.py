@@ -82,19 +82,28 @@ def check_alerts(
     """
     Return list of triggered alerts where current HV{window} > threshold.
     Each dict: {name, current_vol, threshold, excess}.
+
+    The comparison uses the rounded figure, not the raw one, so the banner
+    never contradicts itself. Comparing raw and displaying rounded put
+    "Platinum: 35.0% (threshold 35.0%)" on screen, which reads as a bug: the
+    true value was 35.04% and genuinely above the threshold, but nothing
+    shown to the reader said so.
     """
     if window not in hv_dict:
         return []
     current = hv_dict[window].iloc[-1]
     alerts = []
     for name, threshold in thresholds.items():
-        if name in current and pd.notna(current[name]) and current[name] > threshold:
+        if name not in current or pd.isna(current[name]):
+            continue
+        shown = round(current[name], 1)
+        if shown > threshold:
             alerts.append(
                 {
                     "name": name,
-                    "current_vol": round(current[name], 1),
+                    "current_vol": shown,
                     "threshold": threshold,
-                    "excess": round(current[name] - threshold, 1),
+                    "excess": round(shown - threshold, 1),
                 }
             )
     return sorted(alerts, key=lambda x: x["excess"], reverse=True)
