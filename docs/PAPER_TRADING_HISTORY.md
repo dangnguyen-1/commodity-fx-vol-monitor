@@ -14,6 +14,13 @@ git checkout 5394d6f -- paper_trading/ strategy/   # to restore it entirely
 That was 92 Python files and about 40,500 lines: 14,793 in `paper_trading/`
 and 25,716 in `strategy/`.
 
+**The engine's data is archived too.** Its SQLite database, holding 5 runs
+and 15,510 feature snapshots, is at
+`backups/paper_trading_final_20260902.db.gz` on the VM (7.1 MB compressed,
+WAL checkpointed so the file is self-contained). That is the measurement
+data behind every number below. `scripts/pull_backups.sh` copies it down
+with the rest.
+
 ---
 
 ## What it was
