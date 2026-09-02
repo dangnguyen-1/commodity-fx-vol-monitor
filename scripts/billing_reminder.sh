@@ -28,8 +28,8 @@ case "$KIND" in
     MESSAGE="*commodities pipeline*
 [REMINDER] Hetzner billing check.
 
-The VM carries the collectors, the dashboard and the live paper-trading run.
-A lapsed payment stops all of it and ends the run's data with it.
+The VM carries the collectors and the public dashboard. A lapsed payment
+stops all of it, and the price and news history stops accumulating with it.
 
   console.hetzner.com -> your project -> Billing"
     ;;
