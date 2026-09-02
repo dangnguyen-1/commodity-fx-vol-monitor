@@ -48,6 +48,7 @@ import dash_bootstrap_components as dbc
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.io as pio
 from plotly.subplots import make_subplots
 from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
 
@@ -103,6 +104,36 @@ import views.opportunities as opp_view
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Plotly defaults
+# ---------------------------------------------------------------------------
+
+# Hover styling, set once as a template rather than repeated on each figure.
+#
+# Every chart here builds its own layout, and none of them set hoverlabel,
+# so all tooltips rendered in Plotly's default type on a white background:
+# the one element of the board that never adopted the board's own styling.
+#
+# Layered onto "plotly" rather than replacing it, so this adds hover
+# styling and changes nothing else. Figures that set hoverlabel explicitly
+# still win, since an explicit layout value overrides the template.
+pio.templates["monitor"] = go.layout.Template(
+    layout={
+        "hoverlabel": {
+            "bgcolor": UI_PANEL,
+            "bordercolor": UI_BORDER,
+            "font": {
+                # Mono, because what a tooltip carries is a figure, and
+                # every figure on this board is set in Martian Mono.
+                "family": "Martian Mono, monospace",
+                "size": 12,
+                "color": UI_TEXT,
+            },
+        }
+    }
+)
+pio.templates.default = "plotly+monitor"
 
 # ---------------------------------------------------------------------------
 # App init

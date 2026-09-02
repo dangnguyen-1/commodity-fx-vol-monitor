@@ -168,17 +168,6 @@ def build_map(
         paper_bgcolor=UI_BG,
         plot_bgcolor=UI_BG,
         font={"color": UI_TEXT, "family": "Public Sans, sans-serif"},
-        hoverlabel={
-            "bgcolor": UI_PANEL,
-            "bordercolor": UI_BORDER,
-            "font": {
-                # Mono, because the tooltip's payload is a figure and every
-                # other figure on the board is set in Martian Mono.
-                "family": "Martian Mono, monospace",
-                "size": 12,
-                "color": UI_TEXT,
-            },
-        },
         title_font={"family": "Big Shoulders Display, sans-serif", "color": UI_TEXT, "size": 18},
         geo=dict(
             bgcolor=UI_BG,
