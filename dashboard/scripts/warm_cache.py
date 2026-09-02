@@ -15,7 +15,12 @@ app's normal disk caches (7-day TTL for Comtrade, 24h for World Bank), so
 re-running this after a cache is already warm just confirms it's warm
 rather than refetching.
 
-Usage: python scripts/warm_cache.py
+Run it from the project root, via scripts/warm_cache.sh. The cache paths
+here are relative to the working directory and the dashboard serves with its
+cwd set to the project root, so starting this from dashboard/ warms
+dashboard/cache/ instead, which nothing reads.
+
+Usage: ./scripts/warm_cache.sh
 """
 
 from __future__ import annotations
