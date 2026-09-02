@@ -210,12 +210,12 @@ def _trailing_months(end_month: str, count: int) -> list[str]:
 
 
 def format_ttm_label(end_month: str) -> str:
-    """(e.g. "202606" -> "Jul 2025–Jun 2026 (TTM, live)") for the UI caption."""
+    """(e.g. "202606" -> "Jul 2025 – Jun 2026 (TTM, live)") for the UI caption."""
     months = _trailing_months(end_month, _TTM_MONTHS)
     start_year, start_month = int(months[-1][:4]), int(months[-1][4:6])
     end_year, end_month_num = int(end_month[:4]), int(end_month[4:6])
     return (
-        f"{_MONTH_ABBR[start_month]} {start_year}–"
+        f"{_MONTH_ABBR[start_month]} {start_year} \u2013 "
         f"{_MONTH_ABBR[end_month_num]} {end_year} (TTM, live)"
     )
 

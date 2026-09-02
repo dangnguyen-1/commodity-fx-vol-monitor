@@ -52,10 +52,28 @@ def layout(names: list[str] = NAMES) -> html.Div:
                     style={"background": UI_PANEL},
                 ),
             ], md=4),
+            # md=5 rather than 3, so 3+4+5 fills the row and the caption
+            # has the width to stay on one line. nowrap guarantees it, with
+            # an ellipsis as the failure mode instead of a second line or a
+            # horizontal scrollbar. align-items-end sits its baseline on the
+            # dropdowns beside it rather than above them.
             dbc.Col(
-                html.Small(id="exp-trade-source", className="text-muted"),
+                html.Small(
+                    id="exp-trade-source",
+                    className="text-muted",
+                    style={
+                        "whiteSpace": "nowrap",
+                        "overflow": "hidden",
+                        "textOverflow": "ellipsis",
+                        # A flex item will not shrink below its content
+                        # width without this, so the ellipsis would never
+                        # trigger and the text would overflow instead.
+                        "minWidth": 0,
+                        "width": "100%",
+                    },
+                ),
                 className="d-flex align-items-end pb-1",
-                md=3,
+                md=5,
             ),
         ], className="mb-3 align-items-end"),
 
