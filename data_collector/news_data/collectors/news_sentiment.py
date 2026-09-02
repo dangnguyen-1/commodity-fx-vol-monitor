@@ -72,6 +72,20 @@ MAX_FAILED_ATTEMPTS_PER_ARTICLE = int(
 )
 SLEEP_SECONDS = float(os.getenv("OPENAI_SLEEP_SECONDS", "1.0"))
 
+# Hard ceiling on API calls per UTC day. This is a budget, not a throttle:
+# once it is reached the classifier stops until tomorrow.
+#
+# MAX_ARTICLES_PER_RUN caps a single run, not a day, and this loop wakes
+# every 60 seconds, so it permitted 144,000 calls a day. Nothing prevented a
+# feed change or a backlog from spending far more than intended, and a
+# weekly reminder would report it up to seven days late.
+#
+# 1,000 a day sits near the measured steady state of roughly 900, which at
+# gpt-5.4-mini pricing is about $15 a month. Raise it deliberately, having
+# looked at what a day actually costs, rather than because a backlog is
+# taking longer than expected to clear.
+MAX_CALLS_PER_DAY = int(os.getenv("OPENAI_MAX_CALLS_PER_DAY", "1000"))
+
 OUTPUT_DIR = Path("data_collector/news_data/output")
 FAILED_LOG_PATH = OUTPUT_DIR / "news_sentiment_failed_articles.csv"
 
@@ -198,7 +212,12 @@ def get_unscored_articles():
                 nss.status NOT IN ('success', 'skipped')
                 AND nss.attempts < %s
             )
-        ORDER BY na.id;
+        -- Newest first, deliberately. Under a daily cap the oldest-first
+        -- ordering starved exactly the articles the tab exists to show,
+        -- spending the budget on months-old news. Older articles keep
+        -- whatever classification they already have, so nothing is lost by
+        -- reaching them later or not at all.
+        ORDER BY na.id DESC;
     """
 
     conn = psycopg2.connect(get_database_url())
@@ -483,11 +502,50 @@ def append_failure_log(article_id: int, title: str, error: str) -> None:
         writer.writerow([article_id, title, MODEL_NAME, error[:1000]])
 
 
+def calls_used_today() -> int:
+    """API calls already made this UTC day, successful or not.
+
+    Read from openai_usage rather than counted in memory, so the budget
+    survives a restart. A process that forgets its spending on every crash
+    has no budget at all.
+    """
+    conn = psycopg2.connect(get_database_url())
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT COUNT(*) FROM openai_usage
+                WHERE created_at_utc >= date_trunc('day', now() AT TIME ZONE 'UTC')
+                """
+            )
+            return int(cur.fetchone()[0])
+    finally:
+        conn.close()
+
+
 def main():
     ensure_status_table()
 
+    if MAX_CALLS_PER_DAY > 0:
+        used = calls_used_today()
+        if used >= MAX_CALLS_PER_DAY:
+            print(
+                f"Daily budget reached: {used}/{MAX_CALLS_PER_DAY} calls. "
+                "Not classifying again until tomorrow (UTC)."
+            )
+            return
+        remaining = MAX_CALLS_PER_DAY - used
+        print(f"Budget: {used}/{MAX_CALLS_PER_DAY} used, {remaining} left today")
+    else:
+        remaining = None
+
     client = get_openai_client()
     articles = get_unscored_articles()
+
+    # The per-run cap and the per-day budget are different limits and the
+    # tighter one wins.
+    if remaining is not None and len(articles) > remaining:
+        articles = articles[:remaining]
 
     print(f"Found {len(articles)} articles to score")
     print(f"Model: {MODEL_NAME}")

@@ -34,12 +34,18 @@ A lapsed payment stops all of it and ends the run's data with it.
   console.hetzner.com -> your project -> Billing"
     ;;
   openai)
+    # Reports measured usage rather than asking someone to go and look. The
+    # previous version only linked to the billing page, which is how 1,023
+    # calls came to be logged at $0.00 without anyone noticing that the
+    # per-million prices had never been set.
+    USAGE=$(.venv/bin/python3 -m monitoring.openai_usage_report --days 7 2>&1)
     MESSAGE="*commodities pipeline*
-[REMINDER] OpenAI credit check.
+[WEEKLY] OpenAI usage.
 
-News classification runs at roughly 500 articles a day. If credit runs out
-it stops silently, and Confirmed-mode signals stop with it -- which is the
-one thing the discovery run exists to test.
+$USAGE
+
+News classification is the only variable cost here. If credit runs out it
+stops silently and the Risk & News tab goes stale.
 
   platform.openai.com -> Settings -> Billing"
     ;;
