@@ -40,7 +40,10 @@ def layout() -> html.Div:
             "Click a country to see its bilateral partners: who it "
             "sends to and who it buys from. \"N/A\" means that side only "
             "reports a world total to UN Comtrade, not named countries.",
-            className="text-muted small mb-2",
+            # text-muted is dropped rather than overridden: it sets colour
+            # with !important, which beats an inline style.
+            className="small mb-2",
+            style={"color": UI_TEXT},
         ),
         dcc.Store(id="flow-selected-country", data=None),
         dbc.Row([

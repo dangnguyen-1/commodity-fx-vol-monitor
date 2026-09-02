@@ -27,7 +27,7 @@ import pandas as pd
 import dash_bootstrap_components as dbc
 from dash import dcc, html
 
-from config import ALERT_THRESHOLDS, NAMES, UI_GREEN, UI_MUTED, UI_RED
+from config import ALERT_THRESHOLDS, NAMES, UI_GREEN, UI_MUTED, UI_RED, UI_TEXT
 from data.fx import CURRENCY_PAIRS, COMMODITY_FX_GROUPS
 from data.processor import historical_volatility, price_returns
 
@@ -54,7 +54,10 @@ def layout() -> html.Div:
             "its own volatility is elevated, its historically-linked currency is "
             "moving the way that relationship predicts, and news sentiment points "
             "the same direction as the price move. Any one alone is not a signal.",
-            className="text-muted small mb-3",
+            # text-muted is dropped rather than overridden: it sets colour
+            # with !important, which beats an inline style.
+            className="small mb-3",
+            style={"color": UI_TEXT},
         ),
         html.Div(id="opportunity-board"),
         # The board's own Inputs (price/FX/correlation/sentiment stores) are
