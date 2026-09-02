@@ -276,6 +276,21 @@ def build_jobs(periods: list[str]) -> list[RequestJob]:
 
 
 def job_is_complete(job: RequestJob) -> bool:
+    # The batch holding END_PERIOD is the only one still being written to by
+    # the UN, so it is never trusted as complete. Its checkpoint name encodes
+    # the period range, which means it does get refetched on its own, but not
+    # until END_PERIOD rolls into a new month and the filename changes with
+    # it. That leaves a month published on the 5th unseen until the 1st of
+    # the following month, from a job that runs daily. Refetching it every
+    # run closes that to a day, and also picks up the UN's revisions to the
+    # months in that window.
+    #
+    # One batch out of seventeen, so roughly 160 of the 2,700 requests a full
+    # pass makes, against a 3,500/day ceiling across the configured keys.
+    # Every earlier year stays checkpointed and free.
+    if END_PERIOD in job.periods:
+        return False
+
     if not job.checkpoint_path.exists():
         return False
     try:
