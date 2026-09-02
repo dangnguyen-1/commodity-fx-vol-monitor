@@ -403,17 +403,19 @@ def _live_flows(commodity_name: str) -> tuple[pd.DataFrame, str | None, str]:
 
 
 def data_source_label(commodity_name: str) -> str:
-    """For the UI caption — tells the user whether they're looking at the
-    pipeline's live feed, the free Comtrade API fallback, or
-    the static fallback, and which window, rather than a blanket claim
-    that's wrong for whichever mode isn't active."""
+    """Caption text naming which of the three sources is actually in use.
+
+    All three are UN Comtrade data or estimates, so the caption says which
+    path it came down rather than making a blanket claim that is wrong for
+    whichever mode is not active.
+    """
     flows, period, source = _live_flows(commodity_name)
     if not flows.empty and period:
         window_label = _comtrade.format_ttm_label(period)
         if source == "pipeline":
-            return f"Paper-trading pipeline (UN Comtrade), {window_label}"
-        return f"UN Comtrade, {window_label}"
-    return "IEA/USDA/USGS 2023 estimates (static fallback — live fetch unavailable)"
+            return f"UN Comtrade (collected feed), {window_label}"
+        return f"UN Comtrade (live API), {window_label}"
+    return "IEA/USDA/USGS 2023 estimates (static fallback, live fetch unavailable)"
 
 
 def trade_flows_for_commodity(commodity_name: str) -> pd.DataFrame:

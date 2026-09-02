@@ -157,10 +157,28 @@ def build_map(
         labels={"value": label},
         title=f"{commodity}: {label}",
     )
+    # px generates "Net trade (% GDP)=13.80" from hover_data, which is
+    # cramped and renders in Plotly's default type rather than the board's.
+    fig.update_traces(
+        hovertemplate=(
+            "<b>%{hovertext}</b><br>" + f"{label} = " + "%{z:.2f}<extra></extra>"
+        )
+    )
     fig.update_layout(
         paper_bgcolor=UI_BG,
         plot_bgcolor=UI_BG,
         font={"color": UI_TEXT, "family": "Public Sans, sans-serif"},
+        hoverlabel={
+            "bgcolor": UI_PANEL,
+            "bordercolor": UI_BORDER,
+            "font": {
+                # Mono, because the tooltip's payload is a figure and every
+                # other figure on the board is set in Martian Mono.
+                "family": "Martian Mono, monospace",
+                "size": 12,
+                "color": UI_TEXT,
+            },
+        },
         title_font={"family": "Big Shoulders Display, sans-serif", "color": UI_TEXT, "size": 18},
         geo=dict(
             bgcolor=UI_BG,
