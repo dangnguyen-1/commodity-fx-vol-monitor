@@ -140,6 +140,21 @@ h4, h5, h6 {
   color: var(--muted);
 }
 
+/* Byline under the board title, the way a research note credits its
+   authors. Mono and tracked out so it reads as a credit line rather than
+   as content, muted so it never competes with the title above it.
+   The 14px indent clears the 7px status dot plus its 7px margin, so the
+   names align under the first letter of the title rather than the dot. */
+.board-byline {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-left: 14px;
+  margin-top: 2px;
+}
+
 .board-status-dot {
   display: inline-block;
   width: 7px;

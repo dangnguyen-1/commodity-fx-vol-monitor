@@ -287,11 +287,22 @@ app.layout = dbc.Container(
             [
                 dbc.Col(
                     [
-                        html.Span(className="board-status-dot"),
-                        html.Span("Commodity-FX Volatility Monitor", className="board-title"),
+                        html.Div(
+                            [
+                                html.Span(className="board-status-dot"),
+                                html.Span(
+                                    "Commodity-FX Volatility Monitor",
+                                    className="board-title",
+                                ),
+                            ],
+                            className="d-flex align-items-center",
+                        ),
+                        html.Div(
+                            "Dang Nguyen & Jack Dalton",
+                            className="board-byline",
+                        ),
                     ],
                     width="auto",
-                    className="d-flex align-items-center",
                 ),
                 dbc.Col(
                     html.Small(id="last-updated", className="board-subtitle"),
