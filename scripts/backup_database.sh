@@ -3,13 +3,13 @@
 #
 # Why this exists at all: the market data is not reproducible. TradingView's
 # live feed only retains a week or two of 1-minute history, so anything older
-# than that exists solely in this database — re-running the collectors would
+# than that exists solely in this database, re-running the collectors would
 # not bring it back. Losing it also resets the Step 9 clock (8 calendar weeks
 # and 200 closed trades, no rule changes mid-period), which is wall-clock
 # time that cannot be recovered by any amount of compute.
 #
 # What this protects against, honestly: accidental drops, a bad migration, a
-# corrupted table — anything logical. It does NOT protect against losing the
+# corrupted table, anything logical. It does NOT protect against losing the
 # disk, because the dumps live on that same disk. For that, the dumps have to
 # leave the box: set BACKUP_REMOTE to an scp-style destination
 # (user@host:/path) and they'll be copied there after each successful dump,
@@ -23,7 +23,7 @@ set -a
 set +a
 
 if [ -z "$DATABASE_URL" ]; then
-  echo "DATABASE_URL is not set in .env — nothing to back up."
+  echo "DATABASE_URL is not set in .env, nothing to back up."
   exit 1
 fi
 
@@ -56,7 +56,7 @@ fi
 # leave us with nothing.
 DELETED=$(find backups -name 'commodities_*.dump' -type f -mtime +"$KEEP_DAYS" -print -delete | wc -l)
 echo "rotated out $DELETED backup(s) older than $KEEP_DAYS days"
-# Size only our own dumps, not everything in backups/ — the one-off
+# Size only our own dumps, not everything in backups/, the one-off
 # migration seed lives here too, and counting it made a single 20M backup
 # report as "1 backup(s), 40M total".
 KEPT=$(find backups -name 'commodities_*.dump' -type f | wc -l)

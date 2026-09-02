@@ -2,8 +2,8 @@
 Commodity trade flows for Sankey diagrams and net-position maps.
 
 Three layers, tried in order: the pipeline's own UN Comtrade
-feed (data/pipeline_trade.py — pre-aggregated, no rate limits), the free
-public Comtrade API (data/comtrade.py — real API calls, real rate limits)
+feed (data/pipeline_trade.py, pre-aggregated, no rate limits), the free
+public Comtrade API (data/comtrade.py, real API calls, real rate limits)
 for whatever the pipeline doesn't have, and this file's static table when
 both live sources fail for a given commodity. The static table stays
 labeled 2023 estimates because it is one: a fixed table sourced from IEA
@@ -40,7 +40,7 @@ _pipeline_commodity_names = {
 
 _FLOWS: dict[str, dict] = {
 
-    "WTI Crude": {  # shares HS 2709 with Brent — same physical flows
+    "WTI Crude": {  # shares HS 2709 with Brent, same physical flows
         "exporters": [
             {"iso3": "SAU", "name": "Saudi Arabia",    "usd": 240_000_000_000},
             {"iso3": "RUS", "name": "Russia",          "usd": 130_000_000_000},
@@ -354,7 +354,7 @@ def _static_net_positions(commodity_name: str) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------------------
-# Public API — live Comtrade first, static table as a per-commodity
+# Public API, live Comtrade first, static table as a per-commodity
 # fallback. Memoized per process so a page visit that touches the same
 # commodity from several views (Sankey, map coloring, country detail,
 # price-shock calc across all 9 names) doesn't refetch live data 9 times.
@@ -371,7 +371,7 @@ _LIVE_CACHE: dict[str, tuple[pd.DataFrame, str | None, str, float]] = {}
 
 
 def _live_flows(commodity_name: str) -> tuple[pd.DataFrame, str | None, str]:
-    """Returns (flows, period, source) — source is "pipeline" or
+    """Returns (flows, period, source), source is "pipeline" or
     "comtrade_api" so data_source_label() can say which one actually
     served the data, rather than a blanket "UN Comtrade" claim that's
     right for one path and misleading for the other."""
@@ -380,7 +380,7 @@ def _live_flows(commodity_name: str) -> tuple[pd.DataFrame, str | None, str]:
         return cached[0], cached[1], cached[2]
 
     # The pipeline's pre-aggregated, rate-limit-free feed is tried first;
-    # the free public Comtrade API (data/comtrade.py — TTM window, real
+    # the free public Comtrade API (data/comtrade.py, TTM window, real
     # rate limits) only fills in a commodity the pipeline doesn't have.
     flows, period, source = pd.DataFrame(), None, "pipeline"
     comtrade_name = _pipeline_commodity_names.get(commodity_name)
@@ -430,8 +430,8 @@ def top_traders(commodity_name: str, top_n: int = 15) -> dict:
     """{"exporters": df, "importers": df, "period": "YYYYMM"|None} sorted
     by trade_usd descending. `period` is the live TTM window's end month
     (pipeline or Comtrade API, whichever served it), or None when this
-    fell back to the static table (bilateral breakdown — see
-    data.comtrade.bilateral_export_partners_batch — only makes sense for
+    fell back to the static table (bilateral breakdown, see
+    data.comtrade.bilateral_export_partners_batch, only makes sense for
     a real period regardless of source, so callers should treat
     period=None as "no bilateral data")."""
     flows, period, _source = _live_flows(commodity_name)

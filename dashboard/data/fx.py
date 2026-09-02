@@ -1,5 +1,5 @@
 """
-FX correlation analysis — how currency pairs move with commodity prices.
+FX correlation analysis, how currency pairs move with commodity prices.
 Prices come from the pipeline's live TradingView feed where it's tracked,
 Yahoo Finance as a fallback everywhere else (see data/market_data.py).
 TradingView is the priority source, not just an equal alternative.
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # Currency pairs (vs USD) most relevant to commodity economies.
 # "tradingview" is the pipeline's derived/direct symbol already in the same
 # USD-per-1-unit-of-currency convention as the Yahoo ticker (see
-# data_collector/market_data/collectors/generate_fx_inverses.py) — None
+# data_collector/market_data/collectors/generate_fx_inverses.py), None
 # where the TradingView collector doesn't track that currency at all, in
 # which case this pair is Yahoo-only.
 CURRENCY_PAIRS: dict[str, dict] = {
@@ -81,26 +81,26 @@ CURRENCY_PAIRS: dict[str, dict] = {
 }
 
 # Which commodity each FX pair is most correlated with (for display grouping
-# and as the candidate pool the opportunities screener draws from — see
+# and as the candidate pool the opportunities screener draws from, see
 # views/opportunities.py). Verified against each grade's actual published
 # pricing convention rather than assumed:
 #   - CAD: Western Canadian Select's pricing formula references only WTI
 #     (the WCS-WTI differential), but as a major oil-exporter currency
 #     CAD also trades on broad global crude sentiment, which Brent sets
-#     as the world benchmark — so it's tracked as dual rather than
+#     as the world benchmark, so it's tracked as dual rather than
 #     WTI-only.
 #   - MXN: Pemex's Maya formula is literally 0.65*WTI Houston + 0.35*ICE
-#     Brent + a K factor — genuinely priced off both. Dual.
+#     Brent + a K factor, genuinely priced off both. Dual.
 #   - COP: Colombian grades (Castilla, Vasconia) now benchmark mainly to
 #     Brent as Gulf Coast exports have faded, but WTI is still an active
-#     reference — dual, Brent-leaning.
+#     reference, dual, Brent-leaning.
 #   - NOK: Norwegian crude (Ekofisk/Oseberg/Troll) is a physical component
-#     of the Brent basket itself (the "BFOE" blend) — there is no WTI
+#     of the Brent basket itself (the "BFOE" blend), there is no WTI
 #     linkage in its pricing convention. Brent-only.
 #   - RUB: Urals is priced exclusively as a differential to Dated Brent.
 #     No WTI reference exists in its pricing convention. Brent-only.
 #   - JPY: Japan's dominant crude benchmark is actually Dubai (Middle
-#     East sour), not Brent or WTI — but it's tracked here as WTI-linked
+#     East sour), not Brent or WTI, but it's tracked here as WTI-linked
 #     for its real, if secondary and growing, exposure to US crude
 #     (record Japanese WTI purchase volumes as it diversifies away from
 #     the Middle East).
@@ -122,20 +122,20 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     # world's #6 gold producer (new currency, see CURRENCY_PAIRS).
     "Gold":        ["AUS", "ZAF", "CAN", "GBR", "RUS", "GHA"],
     # MEX added: world's #1 silver producer by a wide margin (~1/5 of
-    # global supply) — was only tracked here for oil before.
+    # global supply), was only tracked here for oil before.
     "Silver":      ["AUS", "ZAF", "CHL", "PER", "MEX"],
     # COD (DRC) added: world's #2 copper producer, ahead of the US, on
     # the back of Kamoa-Kakula. ZMB (Zambia) added: Africa's #2 producer,
-    # targeting 1M+ tonnes in 2026. Both new currencies — see
+    # targeting 1M+ tonnes in 2026. Both new currencies, see
     # CURRENCY_PAIRS.
     "Copper":      ["CHL", "PER", "AUS", "ZAF", "COD", "ZMB", "DEU"],
     # KAZ added: top-10 exporter, one of the fastest-growing (+46% in
-    # 2024-25) — was already a tracked currency, just missing here.
+    # 2024-25), was already a tracked currency, just missing here.
     "Wheat":       ["AUS", "CAN", "RUS", "UKR", "ARG", "KAZ"],
     # Corn's top 5 exporters (US, Brazil, Argentina, Ukraine, France) are
-    # already covered by trackable currencies — US is the base currency
+    # already covered by trackable currencies, US is the base currency
     # and France uses the euro, which isn't tracked as a France-specific
-    # pair — so no changes here.
+    # pair, so no changes here.
     "Corn":        ["BRA", "ARG", "UKR"],
     # CAN and UKR added: both already-tracked currencies, both among the
     # top soybean exporters (Brazil, US, Paraguay, Canada, Ukraine,
@@ -190,7 +190,7 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
 # Natural Gas is deliberately left at ["RUS", "NOR", "AUS", "CAN"] despite
 # Qatar being a top-3 LNG exporter: the Qatari riyal is a hard USD peg, so
 # its "FX correlation" with gas prices is structurally ~0 regardless of
-# the real trade relationship — tracking it wouldn't show anything.
+# the real trade relationship, tracking it wouldn't show anything.
 
 # Derived lookups for tracking the FX pairs as instruments in their own right
 FX_NAMES: list[str] = [v["name"] for v in CURRENCY_PAIRS.values()]
@@ -201,10 +201,10 @@ FX_NAME_TO_ISO3: dict[str, str] = {v["name"]: k for k, v in CURRENCY_PAIRS.items
 def fetch_fx_prices(lookback_days: int = 365) -> pd.DataFrame:
     """
     Fetch the tracked currency pairs' own price history (USD per 1 unit of
-    currency), so FX can be tracked as an instrument — same treatment as
+    currency), so FX can be tracked as an instrument, same treatment as
     the commodities, not just an input to a correlation coefficient.
     Tries the pipeline's TradingView feed first per currency, Yahoo
-    Finance fills in the rest (see data/market_data.py) — most of these
+    Finance fills in the rest (see data/market_data.py), most of these
     15 currencies aren't in the TradingView collector at all, so this is
     normally a hybrid result, not a single-source one.
     """
@@ -224,17 +224,17 @@ def commodity_fx_relationship(
     every currency and every commodity, computed from one shared aligned
     return series so the three stats are internally consistent:
 
-      correlation — Pearson correlation of log-returns.
-      beta        — the currency's sensitivity to a 1% commodity move
+      correlation, Pearson correlation of log-returns.
+      beta       , the currency's sensitivity to a 1% commodity move
                     (regressing currency returns on commodity returns);
                     derived as corr * std(currency) / std(commodity), the
                     standard identity for simple univariate regression.
-      r2          — share of the currency's return variance the commodity
+      r2         , share of the currency's return variance the commodity
                     move explains; equals correlation² for a univariate fit.
 
     `fx_prices`, if given, must be in the same shape fetch_fx_prices()
     returns (columns = currency names, e.g. what's already sitting in the
-    store-fx-prices Dash Store) and cover at least `window` rows — reusing
+    store-fx-prices Dash Store) and cover at least `window` rows, reusing
     it here skips a fresh Yahoo Finance fetch of the same 15 tickers a
     caller may have already fetched moments earlier for the Currencies
     tab. Only fetches fresh when that's missing or too short for the
@@ -305,7 +305,7 @@ def rolling_relationship_series(
 ) -> pd.DataFrame:
     """
     Rolling `window`-trading-day (52-week) beta, correlation, and R² between
-    one commodity and one currency, recomputed at every point in history —
+    one commodity and one currency, recomputed at every point in history ,
     not a single current snapshot. This is what actually shows a
     relationship strengthening or decaying over years (e.g. CAD's beta to
     oil has drifted toward zero since 2022), which a single trailing-window

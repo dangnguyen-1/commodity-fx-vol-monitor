@@ -13,7 +13,7 @@ DEFAULT_INPUT_FILE = Path(
 )
 
 # One-row-at-a-time INSERTs over ~155k rows means ~155k network round
-# trips in a single long-lived transaction — against a remote serverless
+# trips in a single long-lived transaction, against a remote serverless
 # Postgres instance (Neon), that reliably exceeds the connection's idle
 # timeout partway through, so the load silently never completes (this is
 # exactly what was happening: the backfill fetch itself succeeded every

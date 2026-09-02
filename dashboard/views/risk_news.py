@@ -1,5 +1,5 @@
 """
-Risk & News tab — geopolitical risk scores + live news feed.
+Risk & News tab, geopolitical risk scores + live news feed.
 """
 
 from __future__ import annotations
@@ -11,11 +11,11 @@ import dash_bootstrap_components as dbc
 
 from config import NAMES, UI_ACCENT, UI_BG, UI_BLUE, UI_BORDER, UI_GREEN, UI_MUTED, UI_PANEL, UI_RED, UI_TEXT
 from data.news import news_service_unreachable
-from data.political_risk import _risk_label, risk_color, COMMODITY_COUNTRY_WEIGHTS
+from data.political_risk import risk_color, COMMODITY_COUNTRY_WEIGHTS
 
 
 def _tone_icon(direction: str, color: str) -> html.Span:
-    """Authored up/down/flat indicator for news tone, drawn in CSS — no unicode glyphs."""
+    """Authored up/down/flat indicator for news tone, drawn in CSS, no unicode glyphs."""
     if direction == "up":
         return html.Span(className="icon-tri icon-tri--up", style={"color": color})
     if direction == "down":

@@ -1,5 +1,5 @@
 """
-Currencies tab — the 14 tracked FX pairs get the same board treatment as the
+Currencies tab, the 14 tracked FX pairs get the same board treatment as the
 the commodities: their own price tiles and their own volatility chart, not
 just a correlation input buried in another tab.
 """

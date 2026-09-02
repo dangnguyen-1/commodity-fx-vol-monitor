@@ -3,7 +3,7 @@ Pre-warms the on-disk caches for UN Comtrade and World Bank data before the
 app starts serving real traffic.
 
 Without this, the first real visitor to hit Trade Flows or Country
-Exposure after a fresh deploy triggers a cold-cache fetch — UN Comtrade's
+Exposure after a fresh deploy triggers a cold-cache fetch, UN Comtrade's
 rate limiting can stretch that first load past 60-90 seconds, long enough
 to trip some platforms' request/proxy timeouts and show an error instead
 of the data. Run this once as part of your platform's build or release
@@ -35,7 +35,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("warm_cache")
 
 # Matches the Trade Flows tab's default "Show top N countries" slider
-# value — the case an actual first-time visitor hits before touching any
+# value, the case an actual first-time visitor hits before touching any
 # controls.
 _DEFAULT_TOP_N = 10
 _BILATERAL_PARTNERS_SHOWN = 8

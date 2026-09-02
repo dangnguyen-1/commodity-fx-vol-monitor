@@ -14,7 +14,7 @@ import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
-# yfinance is not safe to call from multiple threads at once — concurrent
+# yfinance is not safe to call from multiple threads at once, concurrent
 # yf.download() calls (e.g. two Dash callbacks lazily fetching FX data on
 # the same tab switch) have been observed to corrupt each other's result
 # shape ("Data must be 1-dimensional, got ndarray of shape (N, 2)"). Dash's

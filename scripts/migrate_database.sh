@@ -1,6 +1,6 @@
 #!/bin/bash
 # One-time migration off the previous owner's shared Postgres and onto one
-# we control ourselves. Run this ONCE, then never again — after it, .env
+# we control ourselves. Run this ONCE, then never again, after it, .env
 # points at our own database and nothing in this repo has any knowledge of
 # or dependency on the upstream one.
 #
@@ -16,7 +16,7 @@
 # Prefix the command with a space if your shell is zsh/bash with HISTCONTROL
 # set to ignorespace, so the URL doesn't land in ~/.zsh_history either.
 #
-# TARGET can be anything we own — our own Neon project, Postgres on our own
+# TARGET can be anything we own, our own Neon project, Postgres on our own
 # VM, or a fresh local database. The script doesn't care, as long as it's
 # empty. It must be EMPTY: this restores a full dump (schema + data +
 # indexes + sequences), which is the only way to guarantee the row-for-row
@@ -36,7 +36,7 @@ if [ "$SOURCE_DATABASE_URL" = "$TARGET_DATABASE_URL" ]; then
   exit 1
 fi
 
-# Everything we print about a connection goes through this — a Postgres URL
+# Everything we print about a connection goes through this, a Postgres URL
 # carries the role password inline, and these get pasted into chat logs and
 # terminal scrollback.
 mask() { echo "$1" | sed -E 's#://[^@/]*@#://***:***@#'; }
@@ -70,7 +70,7 @@ echo "On-disk size:            $(psql "$SOURCE_DATABASE_URL" -tAc "SELECT pg_siz
 echo
 echo "Sanity check those dates. If they're still around 2026-07-20, this is a"
 echo "stale snapshot rather than the live shared database, and copying it"
-echo "gains us nothing — stop and sort that out first."
+echo "gains us nothing, stop and sort that out first."
 echo
 read -p "Press Enter to continue, Ctrl-C to abort... " _
 
@@ -85,7 +85,7 @@ EXISTING=$(psql "$TARGET_DATABASE_URL" -tAc \
 if [ "$EXISTING" -ne 0 ]; then
   # setup_cloud_vm.sh applies data_collector/database/schema.sql at its step
   # 7, so the ordinary path to this script arrives with the tables already
-  # created and empty. That's fine — but pg_restore of a full dump would
+  # created and empty. That's fine, but pg_restore of a full dump would
   # trip over every existing relation, so the empty shells have to go first.
   # Anything with actual rows in it, though, is not something to bulldoze.
   ROWS=0
@@ -97,11 +97,11 @@ if [ "$EXISTING" -ne 0 ]; then
     echo
     echo "The target has $EXISTING table(s) holding $ROWS row(s) of real data."
     echo "Refusing to touch it. Point this at a fresh database, or work out"
-    echo "what's in this one first — a restore here would destroy it."
+    echo "what's in this one first, a restore here would destroy it."
     exit 1
   fi
   echo
-  echo "The target has $EXISTING empty table(s) — almost certainly the schema"
+  echo "The target has $EXISTING empty table(s), almost certainly the schema"
   echo "that setup_cloud_vm.sh applied. Dropping and recreating the public"
   echo "schema so the restore lands cleanly. No rows are at risk."
   read -p "Press Enter to drop the empty schema, Ctrl-C to abort... " _
@@ -117,7 +117,7 @@ mkdir -p backups
 DUMP="backups/upstream_seed_$(date -u +%Y%m%dT%H%M%SZ).dump"
 # Custom format: compressed, and pg_restore can be pointed at it again later
 # if this needs re-running. This is the ONLY artifact of the old database we
-# keep, and it's gitignored — it's data, not a live credential.
+# keep, and it's gitignored, it's data, not a live credential.
 pg_dump -Fc --no-owner --no-privileges -f "$DUMP" "$SOURCE_DATABASE_URL"
 echo "Wrote $DUMP ($(du -h "$DUMP" | cut -f1))"
 
@@ -137,7 +137,7 @@ else
   cat /tmp/migrate_diff.$$
   rm -f /tmp/migrate_diff.$$
   echo
-  echo "The dump at $DUMP is intact — investigate before re-running."
+  echo "The dump at $DUMP is intact, investigate before re-running."
   exit 1
 fi
 

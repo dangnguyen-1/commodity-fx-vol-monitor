@@ -1,5 +1,5 @@
 #!/bin/bash
-# LLM classification of whatever news_stream.py has collected — a
+# LLM classification of whatever news_stream.py has collected, a
 # separate persistent loop from news_stream.py itself (that one only
 # collects raw articles; this is the one that actually produces the
 # classified rows the dashboard's /news/latest reads).

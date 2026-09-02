@@ -64,7 +64,7 @@ const fx = [
   'FX:USDJPY',
   'FX:USDCHF',
   'FX:USDCAD',
-  // Commodity-currency dashboard coverage — all confirmed live on
+  // Commodity-currency dashboard coverage, all confirmed live on
   // TradingView's FX_IDC provider (see generate_fx_inverses.py for the
   // USDxxx -> xxxUSD inversion each of these needs).
   'FX_IDC:USDNOK',

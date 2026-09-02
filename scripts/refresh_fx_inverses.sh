@@ -1,6 +1,6 @@
 #!/bin/bash
 # Regenerates the DERIVED:xxxUSD inverse FX rows (CADUSD, MXNUSD, etc.)
-# from the raw USDxxx quotes tv-stream collects — needed because
+# from the raw USDxxx quotes tv-stream collects, needed because
 # TradingView (like most FX data) quotes these as USD-per-foreign-unit,
 # but the dashboard's whole convention is foreign-unit-per-USD. This was
 # previously only ever run once by hand and never scheduled, so it would

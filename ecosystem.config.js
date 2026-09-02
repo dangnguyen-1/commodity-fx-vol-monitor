@@ -19,7 +19,7 @@
 module.exports = {
   apps: [
     {
-      // Real-time TradingView market data — a persistent WebSocket
+      // Real-time TradingView market data, a persistent WebSocket
       // connection, needs to just keep running.
       name: "tv-stream",
       script: "data_collector/market_data/collectors/stream_many.js",
@@ -29,7 +29,7 @@ module.exports = {
       max_restarts: 20,
     },
     {
-      // Collects raw articles (RSS feeds) into news_articles — its own
+      // Collects raw articles (RSS feeds) into news_articles, its own
       // while-loop with a sleep, same "just keep running" shape as the
       // TV stream. Classification is a separate process (below).
       name: "news-stream",
@@ -40,7 +40,7 @@ module.exports = {
       max_restarts: 20,
     },
     {
-      // LLM classification of whatever news-stream has collected —
+      // LLM classification of whatever news-stream has collected ,
       // produces the news_classifications/news_classification_assets
       // rows the dashboard's /news/latest actually reads.
       name: "news-sentiment-stream",
@@ -52,7 +52,7 @@ module.exports = {
     },
     {
       // Rebuilds the DERIVED:xxxUSD inverse FX rows from tv-stream's raw
-      // USDxxx quotes (see generate_fx_inverses.py) — was previously
+      // USDxxx quotes (see generate_fx_inverses.py), was previously
       // only ever run once by hand and never scheduled, so every
       // currency using a DERIVED symbol (CAD, CHF, JPY, and now the
       // rest of the commodity-currency universe) would have silently
@@ -65,7 +65,7 @@ module.exports = {
     },
     {
       // Rebuilds the pre-aggregated 1D bars market_data holds alongside
-      // the raw 1-minute ticks (see historical_daily_backfill.js) — the
+      // the raw 1-minute ticks (see historical_daily_backfill.js), the
       // dashboard's daily-close prices come from these, not the raw
       // feed, and they'd silently freeze without this running. Daily,
       // well after any tracked market's close.
@@ -76,7 +76,7 @@ module.exports = {
       cron_restart: "0 6 * * *",
     },
     {
-      // UN Comtrade is monthly-cadence data, not real-time — this exits
+      // UN Comtrade is monthly-cadence data, not real-time, this exits
       // after each run (autorestart off) and pm2's cron_restart re-fires
       // it daily to catch newly-published months. The backfill script
       // checkpoints completed periods, so a daily re-run only fetches
@@ -89,7 +89,7 @@ module.exports = {
     },
     {
       // Nightly pg_dump with rotation (see scripts/backup_database.sh).
-      // The market data is not reproducible — TradingView only serves a
+      // The market data is not reproducible, TradingView only serves a
       // week or two of 1-minute history, so everything older than that
       // lives in this database and nowhere else. Runs at 03:30 UTC, well
       // clear of the 06:00 refresh jobs below.
@@ -100,7 +100,7 @@ module.exports = {
       cron_restart: "30 3 * * *",
     },
     {
-      // The pipeline's read-only API — the dashboard's only way to reach
+      // The pipeline's read-only API, the dashboard's only way to reach
       // market_data/fundamental_trade_data/paper-trading state.
       name: "pipeline-api",
       script: "scripts/run_pipeline_api.sh",

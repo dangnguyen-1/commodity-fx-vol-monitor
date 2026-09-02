@@ -25,7 +25,7 @@ OUTPUT_FILE = OUTPUT_DIR / "news_articles.csv"
 # Resolving a Google News redirect costs a real network round trip
 # (~1s each). This process re-polls the same RSS feeds every cycle, and
 # the large majority of entries in any given poll were already seen
-# last time — without a cache, every cycle would re-decode ~100
+# last time, without a cache, every cycle would re-decode ~100
 # already-known URLs per feed, which would make collection fall
 # further behind its own polling cadence every time it runs.
 GOOGLE_URL_CACHE_FILE = OUTPUT_DIR / "google_url_cache.json"
@@ -66,12 +66,12 @@ def save_google_url_cache(cache: dict[str, str]) -> None:
 
 def resolve_article_url(url: str, cache: dict[str, str]) -> str:
     """Google News RSS (used for Reuters, since Reuters no longer offers
-    a direct public feed) doesn't link to the real article — its <link>
+    a direct public feed) doesn't link to the real article, its <link>
     is an opaque, JS-only redirect (news.google.com/rss/articles/...)
     that a plain HTTP follow can't resolve; it just lands back on
     Google's own page. This decodes it to the actual source URL.
 
-    This does NOT get us the article body — Reuters blocks automated
+    This does NOT get us the article body, Reuters blocks automated
     fetches of its article pages with DataDome bot-detection (a 401
     challenge page), and that's not something to try to defeat. What
     this does fix: article_id() was hashing Google's redirect URL, not
@@ -83,7 +83,7 @@ def resolve_article_url(url: str, cache: dict[str, str]) -> str:
     Reuters specifically until a licensed feed replaces this path.
 
     `cache` is mutated in place with any newly-resolved URL, keyed by
-    the raw Google redirect — callers persist it across runs so a
+    the raw Google redirect, callers persist it across runs so a
     already-seen entry never gets re-decoded on a later poll."""
     if "news.google.com" not in url:
         return url

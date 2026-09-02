@@ -6,10 +6,10 @@ Alert thresholds are expressed as annualized volatility percentages.
 import os
 
 # ---------------------------------------------------------------------------
-# Data source: "pipeline" | "bloomberg" | "yahoo" | "mock" — env-overridable.
+# Data source: "pipeline" | "bloomberg" | "yahoo" | "mock", env-overridable.
 # "pipeline" (the default) tries the pipeline's live
 # TradingView feed first and falls back to Yahoo Finance per-instrument for
-# whatever the pipeline doesn't track (see data/market_data.py) — this is
+# whatever the pipeline doesn't track (see data/market_data.py), this is
 # the real, "best version" data path. "yahoo" forces Yahoo Finance only,
 # useful if the pipeline API isn't reachable. Bloomberg mode can never work
 # off a local Terminal, so it should stay unused anywhere but a workstation
@@ -20,7 +20,7 @@ DATA_SOURCE: str = os.environ.get("DATA_SOURCE", "pipeline")
 # The pipeline's read-only API (data_collector's TradingView
 # feed + UN Comtrade feed, via api/app.py's /market-data and
 # /trade-data routes). Market data always tries this first and falls back
-# to Yahoo Finance only for symbols it doesn't have — see data/market_data.py.
+# to Yahoo Finance only for symbols it doesn't have, see data/market_data.py.
 PIPELINE_API_BASE_URL: str = os.environ.get("PIPELINE_API_BASE_URL", "http://127.0.0.1:8000")
 
 COMMODITIES: dict[str, dict] = {
@@ -87,19 +87,18 @@ YAHOO_TO_NAME: dict[str, str]  = {v["yahoo"]: k for k, v in COMMODITIES.items()}
 VOL_WINDOWS: list[int] = [30, 60, 90]
 
 # ---------------------------------------------------------------------------
-# UI tokens — "departures board" design system (shared across app and views)
+# UI tokens, "departures board" design system (shared across app and views)
 # The board is a physical information display: a warm-neutral near-black
 # surface, off-white flap characters, and ONE reserved accent for board
 # chrome/alerts. Gains/losses/informational data keep their own semantic
-# hues — those encode facts, not brand decoration.
+# hues, those encode facts, not brand decoration.
 # ---------------------------------------------------------------------------
 UI_BG      = "#12141a"   # board surface (page background)
 UI_PANEL   = "#1a1d26"   # tile/panel surface, one step up from the board
 UI_BORDER  = "#2b2f3d"   # hairline seam between flap tiles / table rows
-UI_TEXT    = "#EAE7DC"   # flap-card off-white — primary text
+UI_TEXT    = "#EAE7DC"   # flap-card off-white, primary text
 UI_MUTED   = "#7d8394"   # secondary/muted text
 UI_ACCENT  = "#F2A93B"   # board chrome + alerts: active tab, lit dot, threshold breach
-UI_AMBER   = UI_ACCENT   # legacy alias
 UI_RED     = "#FB5B6E"   # losses / net importer / danger
 UI_GREEN   = "#34D399"   # gains / net exporter
 UI_BLUE    = "#4EA1F7"   # informational / neutral data (exporters, FX reference)

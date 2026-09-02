@@ -1,5 +1,5 @@
 #!/bin/bash
-# Wrapper so pm2 can run this as a plain script — `python3 -m package.module`
+# Wrapper so pm2 can run this as a plain script, `python3 -m package.module`
 # needs the cwd on the path and the -m flag, which pm2's `script` field
 # can't express directly.
 set -e

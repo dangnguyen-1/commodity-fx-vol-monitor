@@ -13,7 +13,7 @@ Set DATA_SOURCE in config.py:
 DIRECTION CONTRACT (impeccable seed a29f278f, direction:
 vernacular-ephemera-boarding-pass-and-gate-board)
 
-THESIS: Track commodities the way an airport tracks flights — a board
+THESIS: Track commodities the way an airport tracks flights, a board
 that visibly reranks and holds attention on what changed, refusing the
 literal Bloomberg-terminal skin the category always ships.
 
@@ -24,7 +24,7 @@ Gains/losses keep green/red; informational data keeps blue.
 
 STORY: A hiring/technical viewer watches prices flip into place, sees an
 alert tile ignite when a threshold breaks, and reads country/trade/risk
-context as gate-board-style panels — leaving convinced this is a real
+context as gate-board-style panels, leaving convinced this is a real
 cross-domain instrument, not a chart-library demo.
 
 FIRST VIEWPORT: Board header (title, live dot, mono "updated" readout,
@@ -60,7 +60,6 @@ from config import (
     DATA_SOURCE,
     NAMES,
     UI_ACCENT,
-    UI_AMBER,
     UI_BG,
     UI_BLUE,
     UI_BORDER,
@@ -151,7 +150,7 @@ app = dash.Dash(
 # Layout helpers
 # ---------------------------------------------------------------------------
 
-# Categorical palette for multi-commodity line charts — distinct from the
+# Categorical palette for multi-commodity line charts, distinct from the
 # semantic tokens (accent/green/red/blue mean alert/gain/loss/info
 # elsewhere) so a commodity's line color never implies a direction it
 # doesn't have.
@@ -170,7 +169,7 @@ def _color_return(val: float) -> str:
 
 
 def icon_triangle(direction: str, color: str) -> html.Span:
-    """Authored up/down/flat indicator, drawn in CSS — no unicode glyphs."""
+    """Authored up/down/flat indicator, drawn in CSS, no unicode glyphs."""
     if direction == "up":
         return html.Span(className="icon-tri icon-tri--up", style={"color": color})
     if direction == "down":
@@ -215,7 +214,7 @@ def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
             html.Div([
                 html.Div(name, className="tile-label"),
                 html.Div(
-                    f"{px_val:,.2f}" if not np.isnan(px_val) else "-",
+                    f"{px_val: .2f}" if not np.isnan(px_val) else "-",
                     className="tile-price",
                 ),
                 html.Div(
@@ -384,7 +383,7 @@ def load_data(_clicks, _interval):
         prices_raw.rename(columns=YAHOO_TO_NAME, inplace=True)
     elif DATA_SOURCE == "pipeline":
         # TradingView (via the pipeline's API) first, Yahoo
-        # Finance fills in only whatever the pipeline doesn't track —
+        # Finance fills in only whatever the pipeline doesn't track ,
         # see data/market_data.py.
         from data.market_data import fetch_prices as _fetch
         names_to_tv = {name: spec.get("tradingview") for name, spec in COMMODITIES.items()}
@@ -617,11 +616,11 @@ def _render_returns(prices: pd.DataFrame, hv_dict: dict) -> html.Div:
                         style={"color": _color_return(r30d), "textAlign": "right"},
                     ),
                     html.Td(
-                        f"{ma20_val:,.2f}" if not np.isnan(ma20_val) else "-",
+                        f"{ma20_val: .2f}" if not np.isnan(ma20_val) else "-",
                         style={"textAlign": "right"},
                     ),
                     html.Td(
-                        f"{ma50_val:,.2f}" if not np.isnan(ma50_val) else "-",
+                        f"{ma50_val: .2f}" if not np.isnan(ma50_val) else "-",
                         style={"textAlign": "right"},
                     ),
                     html.Td(
@@ -693,7 +692,7 @@ def _corr_heatmap(z, x, y, height=520, colorscale=None, zmid=0, zmin=-1, zmax=1)
     return fig
 
 
-# Metric definitions for the commodity x currency relationship heatmap —
+# Metric definitions for the commodity x currency relationship heatmap ,
 # each a real, independently-meaningful statistic derived from the same
 # 52-week aligned return series (see data.fx.commodity_fx_relationship),
 # not three views of the same number.
@@ -717,7 +716,7 @@ RELATIONSHIP_METRICS = {
 
 # Rolling window choices, in trading days. A shorter window reacts fast and
 # is noisy (3M beta can swing ±0.15 inside a single year); 52W/2Y are the
-# smooth, stable read. Neither is "more correct" — they're different lenses
+# smooth, stable read. Neither is "more correct", they're different lenses
 # on the same relationship, so this is user-selectable rather than one
 # fixed window.
 RELATIONSHIP_WINDOWS = {
@@ -733,7 +732,7 @@ RELATIONSHIP_WINDOWS = {
 def _render_correlation(prices: pd.DataFrame) -> html.Div:
     """Commodity-vs-commodity heatmap, plus an interactive commodity x
     currency relationship section (Correlation / Beta / R², all 52-week
-    rolling) — the real relationship this whole board exists to track,
+    rolling), the real relationship this whole board exists to track,
     not just a coloring option buried in a map dropdown."""
     corr = correlation_matrix(prices, window=60)
     commodity_heatmap = dcc.Graph(
@@ -744,7 +743,7 @@ def _render_correlation(prices: pd.DataFrame) -> html.Div:
     all_window_options = [{"label": v["label"], "value": k} for k, v in RELATIONSHIP_WINDOWS.items()]
     # The snapshot heatmap shares the app-wide 1-year commodity price cache
     # (store-prices), so it can't honor a window longer than that without a
-    # dedicated longer fetch — offer only what it can actually deliver.
+    # dedicated longer fetch, offer only what it can actually deliver.
     # The per-pair History chart below does its own 5-year fetch and can
     # support the full range, "2 Years" included.
     snapshot_window_options = [o for o in all_window_options if RELATIONSHIP_WINDOWS[o["value"]]["days"] <= 252]
@@ -824,7 +823,7 @@ def _render_correlation(prices: pd.DataFrame) -> html.Div:
         # Holds the last-fetched (commodity, currency) pair's 5-year raw
         # prices, keyed so a window-only change (which needs no new data,
         # just a different rolling-window recompute over the same prices)
-        # doesn't refetch — see update_relationship_history.
+        # doesn't refetch, see update_relationship_history.
         dcc.Store(id="store-rel-history-raw", data=None),
     ])
 
@@ -855,7 +854,7 @@ def update_relationship_history(commodity, iso3, window_key, cached_raw):
     else:
         try:
             # TradingView first (via the pipeline), Yahoo fills in whichever
-            # side it doesn't cover — same hybrid used everywhere else, not
+            # side it doesn't cover, same hybrid used everywhere else, not
             # a Yahoo-only fetch, even though this chart's 5-year lookback
             # historically only had Yahoo behind it.
             names_to_tv = {
@@ -923,7 +922,7 @@ def update_relationship_history(commodity, iso3, window_key, cached_raw):
 )
 def update_fx_relationship_heatmap(metric, window_key, prices_json, fx_prices_json):
     """Recomputed fresh whenever the window changes, since correlation/
-    beta/R² all depend on that choice — the cached store-fx-corr/
+    beta/R² all depend on that choice, the cached store-fx-corr/
     store-fx-beta stay fixed at 52 weeks for the Opportunities screener
     and the Country Exposure map, which don't need this flexibility.
     "Recomputed", not "refetched": if store-fx-prices already has the 15
@@ -1083,7 +1082,7 @@ def _render_alerts(hv_dict: dict) -> html.Div:
 )
 def load_geo_data(active_tab, prices_json, wb_cached, fx_cached, risk_cached, fx_prices_json):
     """Lazily fetch World Bank + FX correlation (fixed 52-week, for the
-    Opportunities screener and the Country Exposure map's FX metric — the
+    Opportunities screener and the Country Exposure map's FX metric, the
     Correlation tab's own relationship section recomputes on demand at
     whatever window the user picks, see update_fx_relationship_heatmap)
     + risk data when the geo/risk/correlation/opportunity tabs first open."""
@@ -1144,7 +1143,7 @@ def load_geo_data(active_tab, prices_json, wb_cached, fx_cached, risk_cached, fx
     State("store-fx-prices", "data"),
 )
 def load_fx_prices(active_tab, fx_prices_cached):
-    """Lazily fetch the FX pairs' own price history — a separate callback
+    """Lazily fetch the FX pairs' own price history, a separate callback
     from sentiment below so this fast Yahoo fetch isn't stuck behind the
     slow per-commodity sentiment loop; Dash runs independent callbacks
     concurrently, a single callback with two Outputs would not return
@@ -1247,7 +1246,7 @@ def update_opportunity_board(_n, prices_json, fx_json, fx_corr_json, sentiment_j
     """Renders as soon as the fast inputs (prices, FX prices, correlation)
     are ready. Sentiment is the slowest input (one classified-news lookup per commodity)
     and is never a hard blocker: a commodity with no sentiment score yet
-    reads as neutral (0.0) rather than holding the whole board hostage —
+    reads as neutral (0.0) rather than holding the whole board hostage ,
     the poll keeps ticking and the board quietly fills in sentiment once
     it lands, without the fast 90% of the data waiting on the slow 10%."""
     if not prices_json:
@@ -1442,7 +1441,7 @@ def update_trade_flows(commodity, top_n, _bar_clicks, selected_country):
     exporters_df, importers_df, period = traders["exporters"], traders["importers"], traders.get("period")
 
     # Bilateral (country-to-country) breakdown only exists on top of a real
-    # live period — the static fallback has no such concept. Fetched once
+    # live period, the static fallback has no such concept. Fetched once
     # up front for the whole exporter roster and the whole importer roster
     # (two batched calls, ~12 TTM requests each, not per-country), so every
     # bar in the overview already knows whether it has real partners before
@@ -1468,7 +1467,7 @@ def update_trade_flows(commodity, top_n, _bar_clicks, selected_country):
     # A bar click toggles that country's selection; changing commodity or
     # top-N invalidates whatever was selected (a different country roster
     # entirely). n_clicks are only meaningful when a bar itself fired this
-    # callback — ctx.triggered_id is a dict for those, a plain string
+    # callback, ctx.triggered_id is a dict for those, a plain string
     # ("flow-commodity"/"flow-topn") otherwise.
     triggered = ctx.triggered_id
     if isinstance(triggered, dict) and triggered.get("type") == "flow-bar":
@@ -1486,7 +1485,7 @@ def update_trade_flows(commodity, top_n, _bar_clicks, selected_country):
     export_total = float(exp_row["trade_usd"].iloc[0]) if not exp_row.empty else None
     import_total = float(imp_row["trade_usd"].iloc[0]) if not imp_row.empty else None
 
-    # Both directions come straight from the upfront batch fetch — no
+    # Both directions come straight from the upfront batch fetch, no
     # on-demand per-country fetch on click. A country outside the
     # pre-fetched roster for a given direction (e.g. Saudi Arabia isn't a
     # top-10 importer) shows "no available data" for that side instantly
@@ -1520,12 +1519,12 @@ def _dark_layout() -> dict:
 
 if __name__ == "__main__":
     # Dash's debug mode exposes the Werkzeug interactive debugger on
-    # unhandled exceptions — a remote-code-execution risk if that ever
+    # unhandled exceptions, a remote-code-execution risk if that ever
     # reaches a public cloud URL. Defaults off; opt in locally with
     # DASH_DEBUG=true.
     debug_mode = os.environ.get("DASH_DEBUG", "false").lower() == "true"
     # Most cloud platforms (Render, Railway, Heroku, ...) assign the port
-    # at runtime via $PORT and route to whatever that is — a hardcoded
+    # at runtime via $PORT and route to whatever that is, a hardcoded
     # port would mean the platform's traffic never reaches the app. Falls
     # back to 8050 (this project's usual local URL) when unset.
     port = int(os.environ.get("PORT", 8050))

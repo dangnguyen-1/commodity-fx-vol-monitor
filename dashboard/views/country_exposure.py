@@ -1,10 +1,9 @@
 """
-Country Exposure tab — world choropleth + country detail panel.
+Country Exposure tab, world choropleth + country detail panel.
 """
 
 from __future__ import annotations
 
-import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -83,7 +82,7 @@ def layout(names: list[str] = NAMES) -> html.Div:
             color=UI_BLUE,
         ),
 
-        # Detail panel — appears on country click
+        # Detail panel, appears on country click
         html.Div(id="exp-detail", className="mt-3"),
     ])
 

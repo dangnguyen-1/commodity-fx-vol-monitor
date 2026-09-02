@@ -35,7 +35,7 @@ class BloombergSession:
     def __enter__(self) -> "BloombergSession":
         if not self._session.start():
             raise RuntimeError(
-                "Could not start Bloomberg session — is the Terminal running?"
+                "Could not start Bloomberg session, is the Terminal running?"
             )
         if not self._session.openService(_REF_DATA_SVC):
             raise RuntimeError(f"Could not open Bloomberg service {_REF_DATA_SVC}")

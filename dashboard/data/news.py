@@ -1,6 +1,6 @@
 """
 Commodity news sentiment via the pipeline's read-only API
-(api/app.py's /news/latest route) — LLM-classified real
+(api/app.py's /news/latest route), LLM-classified real
 headlines with direction, confidence, and reasoning, rather than raw tone
 averaging. Sentiment is scaled by 10 (pipeline sentiment is -1..+1; the
 rest of this app's thresholds and the confluence screener were built
@@ -37,7 +37,7 @@ def _pipeline_available() -> bool:
 
 def news_service_unreachable() -> bool:
     """True when the last pipeline API attempt failed and we're still in
-    the cooldown window — lets the UI say "the news service is
+    the cooldown window, lets the UI say "the news service is
     unreachable right now" instead of the misleading "no news found for
     this topic" when the real cause is a dead connection."""
     return _last_failure_at is not None and not _pipeline_available()

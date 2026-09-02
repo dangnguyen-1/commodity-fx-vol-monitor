@@ -1,5 +1,5 @@
 #!/bin/bash
-# Wrapper so pm2 can run this as a plain script — same reasoning as
+# Wrapper so pm2 can run this as a plain script, same reasoning as
 # run_news_stream.sh.
 set -e
 cd "$(dirname "$0")/.."

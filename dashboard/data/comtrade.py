@@ -1,11 +1,11 @@
 """
-UN Comtrade API — live bilateral trade flows by commodity.
+UN Comtrade API, live bilateral trade flows by commodity.
 
 Uses the free public "preview" endpoint (no API key required). Two bugs
 in the original version of this file meant it never actually returned
 data (year was placed in the URL path instead of passed as the `period`
 query param, and reporter countries were passed as ISO3 letters instead
-of Comtrade's numeric UN M49 codes) — the app fell back to
+of Comtrade's numeric UN M49 codes), the app fell back to
 `data/trade_data.py`'s static 2023 estimate table instead, silently.
 
 Getting a single clean total per country+flow also requires two more
@@ -19,13 +19,13 @@ window per country, rather than the last full calendar year. Comtrade's
 finalized annual figures lag real time by well over a year; monthly
 figures for major reporters (the US among them) are typically only
 1-2 months behind. Not every country reports monthly on the same
-cadence, though — some (Saudi Arabia among them) only publish monthly
+cadence, though, some (Saudi Arabia among them) only publish monthly
 data with several months' extra lag versus faster reporters. Rather
 than forcing every country into a shared "most recent month" cutoff
 (which would silently understate laggard reporters), the TTM window is
 picked once from whichever recent month has data for the commodity's
 country roster as a whole, and each country's 12-month sum uses
-whatever of those specific months it has actually published — the same
+whatever of those specific months it has actually published, the same
 "missing months means less counted, not guessed at" honesty already
 used for bilateral partner detail below.
 
@@ -35,7 +35,7 @@ allow multiple `reporterCode` values in one call, so a TTM window costs
 in that commodity's roster at once) rather than 12 times the country
 count.
 
-Results are cached to disk per (HS code, month) for 7 days — a given
+Results are cached to disk per (HS code, month) for 7 days, a given
 month's published figures rarely change once they've appeared.
 """
 
@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 _BASE = "https://comtradeapi.un.org/public/v1/preview/C/M/HS"
 _REPORTERS_URL = "https://comtradeapi.un.org/files/v1/app/reference/Reporters.json"
 _CACHE_DIR = Path("cache/comtrade")
-_CACHE_TTL = 7 * 86_400        # 7 days — a published month's figures rarely change
+_CACHE_TTL = 7 * 86_400        # 7 days, a published month's figures rarely change
 _REPORTERS_CACHE_TTL = 30 * 86_400  # country code list barely ever changes
 _REQUEST_TIMEOUT = 12
 _MAX_RETRIES = 2
@@ -79,7 +79,7 @@ COMMODITY_HS: dict[str, str] = {
     "Soybeans":    "1201",
 }
 
-# Candidate reporter countries per commodity — the same real-world
+# Candidate reporter countries per commodity, the same real-world
 # exporter/importer roster curated in data/trade_data.py, just used here
 # to scope which countries are worth querying live rather than querying
 # all ~250 Comtrade reporters for every commodity.
@@ -166,7 +166,7 @@ def _get_with_retry(url: str, params: dict) -> requests.Response | None:
 
 def _reporter_code_map() -> dict[str, int]:
     """ISO3 -> Comtrade numeric reporterCode, from Comtrade's own official
-    reference file (never hand-maintained — a typo in a hand-built
+    reference file (never hand-maintained, a typo in a hand-built
     ISO3→numeric table would silently query the wrong country)."""
     cached = _read_cache("reporters", ttl=_REPORTERS_CACHE_TTL)
     if cached is None:
@@ -251,7 +251,7 @@ def _fetch_flows(hs_code: str, iso3_list: list[str], period: str) -> list[dict]:
 
 def _latest_month_with_data(hs_code: str, iso3_list: list[str]) -> str | None:
     """The most recent month, across this commodity's whole country
-    roster, that Comtrade has published anything for — the end of the
+    roster, that Comtrade has published anything for, the end of the
     TTM window. Monthly data lags real time by 1-2 months for fast
     reporters, more for others, so probe backward rather than assuming."""
     year, month = date.today().year, date.today().month
@@ -291,7 +291,7 @@ def trade_flows_for_commodity(commodity_name: str) -> tuple[pd.DataFrame, str | 
     if end_month is None:
         return pd.DataFrame(), None
 
-    # Sum each country's own reported months within the window — a
+    # Sum each country's own reported months within the window, a
     # reporter that hasn't published its most recent 1-2 months yet
     # (Comtrade's monthly cadence varies a lot by country) contributes
     # less for those months rather than being guessed at or dropped
@@ -302,7 +302,7 @@ def trade_flows_for_commodity(commodity_name: str) -> tuple[pd.DataFrame, str | 
         rows = _fetch_flows(hs, iso3_list, period)
         # Some reporters (e.g. Nigeria) return both the "C00" grand-total
         # customs code and a specific-regime code (C01/C03/...) carrying
-        # the identical value for a single-regime economy — collapse to
+        # the identical value for a single-regime economy, collapse to
         # one value per reporter+flow for this month before accumulating,
         # so a duplicate row can't get summed into the TTM total twice.
         month_totals: dict[tuple[str, str], float] = {}
@@ -340,8 +340,8 @@ def _bilateral_partners_batch(
 ) -> dict[str, pd.DataFrame]:
     """
     Shared implementation behind bilateral_export_partners_batch (flow_code
-    "X" — who a reporter ships to) and bilateral_import_partners_batch
-    (flow_code "M" — who a reporter buys from). Same mechanics either way:
+    "X", who a reporter ships to) and bilateral_import_partners_batch
+    (flow_code "M", who a reporter buys from). Same mechanics either way:
     summed over the trailing-12-month window ending at `end_month`, all
     reporters fetched together per month (Comtrade allows multiple
     reporterCode values per call, just one period), so this costs ~12
@@ -449,7 +449,7 @@ def bilateral_import_partners_batch(
 
 
 def top_traders(commodity_name: str, top_n: int = 15) -> dict:
-    """{"exporters": df, "importers": df, "period": "YYYYMM"|None} — live
+    """{"exporters": df, "importers": df, "period": "YYYYMM"|None}, live
     TTM data (period is the window's end month), top_n countries each by
     trade value. Empty frames on failure."""
     flows, period = trade_flows_for_commodity(commodity_name)
@@ -473,7 +473,7 @@ def top_traders(commodity_name: str, top_n: int = 15) -> dict:
 
 def net_positions(commodity_name: str) -> pd.DataFrame:
     """Net trade position per country (exports - imports, USD). Positive
-    = net exporter. Empty DataFrame on failure — no `period` column since
+    = net exporter. Empty DataFrame on failure, no `period` column since
     this shape matches data.trade_data.net_positions for a drop-in swap;
     callers that need the period should use top_traders() instead."""
     flows, _period = trade_flows_for_commodity(commodity_name)

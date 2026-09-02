@@ -1,11 +1,11 @@
 """
-Market data fetcher — sourced from the pipeline's live
+Market data fetcher, sourced from the pipeline's live
 TradingView feed (via its read-only API, see api/app.py's
 /market-data route), blending the pre-aggregated daily-bar table (long
 history) with raw one-minute ticks (today's price, always live) so
 nothing here is ever stuck waiting on a scheduled daily rebuild. Every
 commodity and currency the dashboard tracks now has a live TradingView
-symbol (see config.py / data/fx.py) — Yahoo Finance is kept only as a
+symbol (see config.py / data/fx.py), Yahoo Finance is kept only as a
 last-resort fallback if the pipeline itself is unreachable, not a
 routine per-instrument gap-filler.
 """
@@ -28,7 +28,7 @@ _REQUEST_TIMEOUT = 10
 def _normalize_to_daily(series: pd.Series) -> pd.Series:
     """Collapse to one row per calendar date, keeping the last value for
     that day. Necessary because different symbols publish their "daily"
-    close at different times of day — futures markets close at a
+    close at different times of day, futures markets close at a
     different UTC hour than FX pairs, and Yahoo's own daily bars land at
     yet another convention. Combining series on their raw timestamps
     directly (as this function used to) creates a spurious interleaved
@@ -84,7 +84,7 @@ def _fetch_recent_live_prices(tv_symbols: list[str]) -> pd.DataFrame:
     """Pulls raw one-minute bars for the last few days and collapses them
     to one row per calendar day (the latest tick of each day). The
     pre-aggregated "1D" table (_fetch_pipeline_prices) only gets rebuilt
-    once a day by a scheduled job — this is what keeps "today's" price
+    once a day by a scheduled job, this is what keeps "today's" price
     genuinely live in between those rebuilds, straight from the same
     1-minute feed tv-stream is always writing, rather than waiting on
     the next scheduled daily-bar run or falling back to a delayed
@@ -107,14 +107,14 @@ def fetch_prices(
 ) -> pd.DataFrame:
     """
     Returns a DataFrame indexed by date with one column per name in
-    names_to_yahoo (every instrument the dashboard tracks) — same shape
+    names_to_yahoo (every instrument the dashboard tracks), same shape
     data/yahoo.py's fetch_prices alone used to return, so nothing
     downstream needs to know which source a given column came from.
 
     For each name: try the pipeline's TradingView symbol first (skip
-    entirely if names_to_tv has None — that instrument isn't in the
-    TradingView collector at all); whatever isn't covered — pipeline
-    unreachable, or that symbol has no rows — falls back to Yahoo
+    entirely if names_to_tv has None, that instrument isn't in the
+    TradingView collector at all); whatever isn't covered, pipeline
+    unreachable, or that symbol has no rows, falls back to Yahoo
     Finance for just that name.
     """
     tv_symbols = [s for s in names_to_tv.values() if s]

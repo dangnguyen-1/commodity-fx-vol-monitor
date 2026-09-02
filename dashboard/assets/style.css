@@ -1,5 +1,5 @@
 /* ===========================================================================
-   Commodity-FX Volatility Monitor — "Departures Board" design system
+   Commodity-FX Volatility Monitor, "Departures Board" design system
    Commodities tracked the way an airport tracks flights: a board that
    visibly reranks by volatility, changed rows lit and held, detail views
    read like a segmented boarding pass. Board surface + off-white flap
@@ -31,7 +31,7 @@
   --font-body:    'Public Sans', sans-serif;
 
   /* Dash's own native component theme tokens (Dropdown, Slider, DatePicker)
-     — retuned from their light-mode defaults to the board's dark surface. */
+    , retuned from their light-mode defaults to the board's dark surface. */
   --Dash-Fill-Inverse-Strong:     #1a1d26;
   --Dash-Fill-Interactive-Strong: #F2A93B;
   --Dash-Fill-Interactive-Weak:   rgba(242, 169, 59, 0.14);
@@ -92,11 +92,11 @@ h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------------
-   Header — board signage
+   Header, board signage
    --------------------------------------------------------------------------- */
 
 /* The whole dashboard sits inside a shallow cabinet, not floating loose
-   on the page background — a thin frame plus an inset shadow at the
+   on the page background, a thin frame plus an inset shadow at the
    edges, like a board mounted behind glass. */
 .board-frame {
   box-shadow:
@@ -192,7 +192,7 @@ h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------------
-   Flip tiles — summary strip
+   Flip tiles, summary strip
    --------------------------------------------------------------------------- */
 
 .flip-tile {
@@ -208,7 +208,7 @@ h4, h5, h6 {
 }
 
 .flip-tile::after {
-  /* the flap seam — the line where the two board halves meet */
+  /* the flap seam, the line where the two board halves meet */
   content: "";
   position: absolute;
   left: 0;
@@ -260,7 +260,7 @@ h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------------
-   Alert banner — "gate changed" board strip
+   Alert banner, "gate changed" board strip
    --------------------------------------------------------------------------- */
 
 .board-alert {
@@ -286,7 +286,7 @@ h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------------
-   Tabs — gate strip
+   Tabs, gate strip
    --------------------------------------------------------------------------- */
 
 .nav-tabs {
@@ -321,7 +321,7 @@ h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------------
-   Tables — the board itself
+   Tables, the board itself
    --------------------------------------------------------------------------- */
 
 .table {
@@ -373,7 +373,7 @@ h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------------
-   Alerts (dbc.Alert) — status strips, no left-border accent
+   Alerts (dbc.Alert), status strips, no left-border accent
    --------------------------------------------------------------------------- */
 
 .alert {
@@ -408,7 +408,7 @@ h4, h5, h6 {
 .badge.bg-danger   { background-color: var(--red) !important; color: #2b0508 !important; }
 
 /* ---------------------------------------------------------------------------
-   Flow bars — ranked, click-to-zoom country bars on the Trade Flows tab
+   Flow bars, ranked, click-to-zoom country bars on the Trade Flows tab
    --------------------------------------------------------------------------- */
 
 .flow-bar-row {
@@ -539,7 +539,7 @@ button.flow-bar-row {
 }
 
 /* ---------------------------------------------------------------------------
-   Segmented meters — replaces smooth pill progress bars with a discrete
+   Segmented meters, replaces smooth pill progress bars with a discrete
    board-native level readout (a stack of lit/unlit blocks, like a signal
    strength or fuel gauge on a physical instrument panel).
    --------------------------------------------------------------------------- */
@@ -654,7 +654,7 @@ button.flow-bar-row {
 .news-card:hover { border-color: var(--blue) !important; }
 
 /* ---------------------------------------------------------------------------
-   Trend / tone icons — authored SVGs, single stroke, no unicode glyphs
+   Trend / tone icons, authored SVGs, single stroke, no unicode glyphs
    --------------------------------------------------------------------------- */
 
 .icon-svg { display: inline-block; vertical-align: middle; }

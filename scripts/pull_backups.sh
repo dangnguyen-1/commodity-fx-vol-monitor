@@ -21,7 +21,7 @@
 # That copies this script to ~/Library/Application Support/commodities/ and
 # points a launchd agent at the copy. The copy is not an accident: macOS TCC
 # refuses to let launchd execute anything inside ~/Desktop, ~/Documents or
-# ~/Downloads without Full Disk Access, and it refuses *silently* — the job
+# ~/Downloads without Full Disk Access, and it refuses *silently*, the job
 # exits 126 with "Operation not permitted" into a log nobody reads, while
 # running perfectly when you try it by hand. That is exactly how the previous
 # owner's launchd agent stopped working without anyone noticing. Re-run

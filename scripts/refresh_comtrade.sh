@@ -1,7 +1,7 @@
 #!/bin/bash
 # Periodic Comtrade refresh: fetch whatever's new since the last run (the
 # backfill script checkpoints completed periods, so this is cheap after
-# the first run — not a full 2010-present refetch each time), then load
+# the first run, not a full 2010-present refetch each time), then load
 # into fundamental_trade_data. Comtrade data is monthly, not real-time,
 # so this only needs to run periodically (see ecosystem.config.js's
 # cron_restart), not continuously like the market/news streams.

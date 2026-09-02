@@ -1,13 +1,13 @@
 """
-Opportunities tab — the confluence screener this whole board exists for.
+Opportunities tab, the confluence screener this whole board exists for.
 
 Real commodity-currency exposure is many-to-many, not one pick per
 commodity: gold links to the Australian Dollar, the South African Rand,
 the Canadian Dollar, and the Swiss Franc all at once, because all four are
 real gold-exporting or gold-linked economies; the Australian Dollar in
 turn links to gold, silver, copper, natural gas, AND wheat. So this screens
-every (commodity, currency) pair drawn from COMMODITY_FX_GROUPS — the
-curated real economic linkages — not a single "most correlated" match,
+every (commodity, currency) pair drawn from COMMODITY_FX_GROUPS, the
+curated real economic linkages, not a single "most correlated" match,
 which tends to surface statistical noise (Copper pairing with the
 Ukrainian Hryvnia over the Chilean Peso) over the actual exporter
 relationship.
@@ -17,7 +17,7 @@ all agree: the commodity's own volatility is elevated (the move is real,
 not chop), the currency is actually moving the way the correlation
 predicts (the relationship is holding, not breaking), and news sentiment
 points the same direction as the price move (the narrative backs it up).
-All three have to line up — any one alone is not a signal.
+All three have to line up, any one alone is not a signal.
 """
 
 from __future__ import annotations
@@ -35,11 +35,11 @@ VOL_RATIO_THRESHOLD = 0.85   # HV30 / alert threshold
 CORR_STRENGTH_THRESHOLD = 0.30  # |correlation| needed to call the link "real"
 MOVE_EPSILON = 0.1  # % move below which a direction doesn't count as directional
 
-# Currencies whose only data source (Yahoo Finance — no TradingView symbol
+# Currencies whose only data source (Yahoo Finance, no TradingView symbol
 # exists for these) is thin enough that a real chunk of daily closes are
 # just the prior day's value repeated, not a fresh live quote. Checked
 # directly: over a trailing 30-day sample, the Congolese Franc repeated
-# ~53% of days and the Ghanaian Cedi ~13% — both look more like an
+# ~53% of days and the Ghanaian Cedi ~13%, both look more like an
 # occasionally-refreshed fixing rate than a live market feed. That flattens
 # their measured volatility/correlation below what the real relationship
 # probably is, so they're marked in the table rather than presented at
@@ -98,7 +98,7 @@ def build_opportunity_board(
 
         corr_col = fx_corr[name].dropna()
         # Every currency this commodity is actually economically linked to
-        # (its real exporter/producer economies) — a commodity can have
+        # (its real exporter/producer economies), a commodity can have
         # several at once (gold: AUD, ZAR, CAD, CHF), and the same currency
         # can show up under several commodities (AUD also under silver,
         # copper, natural gas, wheat). Falls back to the single strongest

@@ -145,9 +145,9 @@ will be rebuilt when there is something worth trading.
 
 ## What was kept
 
-- `api/` — the read-only API, reduced from 17 routes to 4. `/news/latest`
+- `api/`, the read-only API, reduced from 17 routes to 4. `/news/latest`
   was rewritten to read Postgres directly rather than the engine's SQLite.
-- `monitoring/health_watchdog.py` — rewritten against Postgres. The
+- `monitoring/health_watchdog.py`, rewritten against Postgres. The
   heartbeat and alert checks went with the engine; the data-freshness,
   OpenAI and disk checks stayed.
 - Everything under `data_collector/` and `dashboard/`.

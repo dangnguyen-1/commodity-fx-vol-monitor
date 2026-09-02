@@ -1,15 +1,15 @@
 """
-Trade Flows tab — ranked exporter/importer bars, click any country for its
+Trade Flows tab, ranked exporter/importer bars, click any country for its
 own real bilateral partners.
 
 Default view: two ranked lists, top exporters (blue) and top importers
 (red), each a "fat bar" sized by trade value with the country code printed
-large on it — no flow lines, no Sankey, just the two rankings side by
+large on it, no flow lines, no Sankey, just the two rankings side by
 side. Clicking any bar re-centers the view on that one country: its real
 import sources (blue bars, left) and export destinations (red bars,
 right), pulled from UN Comtrade's bilateral breakdown. A country that
-only reports a world total for a given direction — no named partners at
-all — shows "N/A" for that side rather than a guess. Clicking the
+only reports a world total for a given direction, no named partners at
+all, shows "N/A" for that side rather than a guess. Clicking the
 selected country's own card again returns to the two-list overview.
 """
 
@@ -19,7 +19,7 @@ import pandas as pd
 from dash import dcc, html
 import dash_bootstrap_components as dbc
 
-from config import NAMES, UI_BLUE, UI_MUTED, UI_PANEL, UI_RED, UI_TEXT
+from config import NAMES, UI_BLUE, UI_PANEL, UI_RED, UI_TEXT
 
 
 def _rgba(hex_color: str, alpha: float) -> str:
@@ -87,7 +87,7 @@ def _bar_row(
 ) -> html.Div:
     """One fat, value-proportional bar with the country code printed large
     on top of it. Clickable rows are wrapped in a real html.Button (the
-    only way to get a reliable click target — Plotly Sankey bars, tried
+    only way to get a reliable click target, Plotly Sankey bars, tried
     earlier, don't fire click events at all)."""
     pct = max(2.0, min(100.0, (value / max_value) * 100)) if max_value else 2.0
     label = iso3 if has_data else f"{iso3} (N/A)"
@@ -97,7 +97,7 @@ def _bar_row(
     if not has_data:
         classes += " flow-bar-na"
 
-    # scaleX (transform) rather than width — width changes trigger layout
+    # scaleX (transform) rather than width, width changes trigger layout
     # reflow on every render; transform is compositor-only.
     content = html.Div([
         html.Div(className="flow-bar-fill",
@@ -119,7 +119,7 @@ def _bar_row(
 
 
 def _back_button(iso3: str) -> html.Button:
-    """Reuses the same click id the bars use — clicking it re-fires the
+    """Reuses the same click id the bars use, clicking it re-fires the
     "same country clicked twice" toggle-off in the callback, landing back
     on the overview. A dedicated, always-visible control rather than
     relying on someone noticing the center card itself is clickable."""
@@ -146,7 +146,7 @@ def build_overview(
     top_n: int,
     selected: str | None = None,
 ) -> html.Div:
-    """The default two-list ranking — no flow lines, just fat bars."""
+    """The default two-list ranking, no flow lines, just fat bars."""
     if exporters.empty and importers.empty:
         return html.Div(
             "No trade flow data available for this commodity. Data loads "
@@ -194,7 +194,7 @@ def build_zoom(
 ) -> html.Div:
     """Centered on one country: who sends to it (left, blue) and who it
     sends to (right, red). Flanking bars are informational, not clickable
-    — only the original top-exporter/top-importer rankings drill down, to
+   , only the original top-exporter/top-importer rankings drill down, to
     keep the click surface bounded to countries this app already has
     totals for."""
     src_rows = sources.head(top_n) if sources is not None else pd.DataFrame()
