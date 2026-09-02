@@ -211,7 +211,15 @@ def get_unscored_articles():
             ON nss.article_id = na.id
            AND nss.model = %s
         WHERE
-            -- Already handled by some model, so leave it alone. Status is
+            -- Already handled, matched on title rather than on id. The six
+            -- Reuters queries overlap, and Google News mints a different
+            -- redirect URL per query, so the same story arrives twice as
+            -- two rows that URL-based dedup cannot see. 295 of 2,936
+            -- articles were duplicated that way, and 603 classification
+            -- calls had gone on headlines already read. That is about a
+            -- tenth of a daily budget which is now binding.
+            --
+            -- Also still true of the original case. Status is
             -- keyed by (article_id, model), which means changing the model
             -- made every previously classified article look unscored again.
             -- Switching to gpt-5.4-mini therefore queued the entire 2,700
@@ -224,7 +232,8 @@ def get_unscored_articles():
             -- OPENAI_RECLASSIFY_ALL=1 to force a full pass deliberately.
             NOT EXISTS (
                 SELECT 1 FROM news_sentiment_status done
-                WHERE done.article_id = na.id
+                JOIN news_articles seen ON seen.id = done.article_id
+                WHERE seen.title = na.title
                   AND done.status IN ('success', 'skipped')
                   AND %s = 0
             )
