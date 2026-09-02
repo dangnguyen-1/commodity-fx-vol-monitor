@@ -117,6 +117,21 @@ h4, h5, h6 {
   color: var(--text) !important;
 }
 
+/* Section headings on the About tab.
+   Muted grey made them recede into the body text they were introducing.
+   Amber would have made them pop hardest but is reserved for chrome and
+   alerts and never spent as decoration, so the lift comes from the board's
+   own signage language instead: display face, uppercase, tracked out, at
+   full text brightness rather than muted. */
+.section-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text) !important;
+}
+
 .board-subtitle {
   font-family: var(--font-mono);
   font-size: 0.68rem;

@@ -118,7 +118,7 @@ SOURCES: list[tuple[str, str, str]] = [
 def _section(title: str, body) -> dbc.Card:
     return dbc.Card(
         dbc.CardBody([
-            html.H6(title, className="text-muted mb-3"),
+            html.H6(title, className="section-title mb-3"),
             body,
         ]),
         style={"background": UI_PANEL, "border": f"1px solid {UI_BORDER}"},
