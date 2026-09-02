@@ -15,9 +15,10 @@ direction, blue for informational data, and mono for every figure.
 from __future__ import annotations
 
 import json
+from io import StringIO
 import logging
 import os
-from datetime import date
+from datetime import datetime, timezone
 
 import dash
 import dash_bootstrap_components as dbc
@@ -348,7 +349,11 @@ def load_data(_clicks, _interval):
         prices_raw.rename(columns=BBG_TO_NAME, inplace=True)
 
     prices = prices_raw[[c for c in NAMES if c in prices_raw.columns]]
-    timestamp = f"Updated {date.today().strftime('%d %b %Y %H:%M')}"
+    # datetime, not date: date has no time component, so %H:%M on it
+    # renders 00:00 on every refresh. UTC to match every other time in
+    # the system, and labelled so it is not read as local.
+    stamp = datetime.now(timezone.utc).strftime("%d %b %Y %H:%M")
+    timestamp = f"Updated {stamp} UTC"
     return prices.to_json(date_format="iso", orient="split"), timestamp
 
 
@@ -360,7 +365,7 @@ def load_data(_clicks, _interval):
 def update_summary(json_data):
     if json_data is None:
         return [], []
-    prices = pd.read_json(json_data, orient="split")
+    prices = pd.read_json(StringIO(json_data), orient="split")
     hv_dict = historical_volatility(prices, VOL_WINDOWS)
     hv30_series = hv_dict[30].iloc[-1]
 
@@ -412,7 +417,7 @@ def render_tab(active_tab, json_data):
     if json_data is None:
         return dbc.Spinner(color="light")
 
-    prices = pd.read_json(json_data, orient="split")
+    prices = pd.read_json(StringIO(json_data), orient="split")
 
     if active_tab == "corr":
         return _render_correlation(prices)
@@ -507,7 +512,7 @@ def update_vol_chart(selected_names, selected_windows, hv_store):
     for i, name in enumerate(selected_names):
         color = palette[i % len(palette)]
         for j, w in enumerate(sorted(selected_windows)):
-            hv = pd.read_json(hv_store[str(w)], orient="split")
+            hv = pd.read_json(StringIO(hv_store[str(w)]), orient="split")
             if name not in hv.columns:
                 continue
             series = hv[name].dropna()
@@ -800,7 +805,7 @@ def update_relationship_history(commodity, iso3, window_key, cached_raw):
     pair_key = f"{commodity_ticker}|{currency_ticker}"
 
     if cached_raw and cached_raw.get("key") == pair_key:
-        raw = pd.read_json(cached_raw["prices"], orient="split")
+        raw = pd.read_json(StringIO(cached_raw["prices"]), orient="split")
         store_update = no_update
     else:
         try:
@@ -884,8 +889,8 @@ def update_fx_relationship_heatmap(metric, window_key, prices_json, fx_prices_js
         return html.Div("Waiting on commodity prices…", className="text-muted small")
 
     window_spec = RELATIONSHIP_WINDOWS.get(window_key, RELATIONSHIP_WINDOWS["52w"])
-    prices = pd.read_json(prices_json, orient="split")
-    fx_prices = pd.read_json(fx_prices_json, orient="split") if fx_prices_json else None
+    prices = pd.read_json(StringIO(prices_json), orient="split")
+    fx_prices = pd.read_json(StringIO(fx_prices_json), orient="split") if fx_prices_json else None
 
     try:
         relationship = commodity_fx_relationship(prices, window=window_spec["days"], fx_prices=fx_prices)
@@ -1059,11 +1064,11 @@ def load_geo_data(active_tab, prices_json, wb_cached, fx_cached, risk_cached, fx
 
     if fx_json is None and prices_json is not None:
         try:
-            prices = pd.read_json(prices_json, orient="split")
+            prices = pd.read_json(StringIO(prices_json), orient="split")
             # Reuse store-fx-prices if the Currencies tab already fetched
             # it this session, instead of hitting Yahoo Finance again for
             # the same 15 tickers.
-            fx_prices = pd.read_json(fx_prices_json, orient="split") if fx_prices_json else None
+            fx_prices = pd.read_json(StringIO(fx_prices_json), orient="split") if fx_prices_json else None
             corr = commodity_fx_relationship(prices, fx_prices=fx_prices)["correlation"]
             fx_json = corr.to_json(orient="index") if not corr.empty else "{}"
         except Exception as exc:
@@ -1073,7 +1078,7 @@ def load_geo_data(active_tab, prices_json, wb_cached, fx_cached, risk_cached, fx
     risk_json = risk_cached
     if risk_json is None and wb_json not in (None, "{}"):
         try:
-            wb_df = pd.read_json(wb_json, orient="index")
+            wb_df = pd.read_json(StringIO(wb_json), orient="index")
             risks = country_risk_scores(wb_df)
             risk_json = risks.to_json(orient="index")
         except Exception as exc:
@@ -1134,7 +1139,7 @@ def load_sentiment_data(active_tab, sentiment_cached):
 def update_fx_summary(fx_json):
     if not fx_json or fx_json == "{}":
         return []
-    fx_prices = pd.read_json(fx_json, orient="split")
+    fx_prices = pd.read_json(StringIO(fx_json), orient="split")
     hv_dict = historical_volatility(fx_prices, VOL_WINDOWS)
     hv30 = hv_dict[30].iloc[-1]
     return fx_view.build_summary_cards(fx_prices, hv30, icon_triangle, UI_GREEN, UI_RED, UI_MUTED)
@@ -1150,7 +1155,7 @@ def update_fx_summary(fx_json):
 def update_fx_chart(selected_names, selected_windows, fx_json):
     if not fx_json or fx_json == "{}":
         return go.Figure(), no_update
-    fx_prices = pd.read_json(fx_json, orient="split")
+    fx_prices = pd.read_json(StringIO(fx_json), orient="split")
     hv_dict = historical_volatility(fx_prices, VOL_WINDOWS)
     hv_store = {str(w): hv.to_json(date_format="iso", orient="split") for w, hv in hv_dict.items()}
 
@@ -1207,9 +1212,9 @@ def update_opportunity_board(_n, prices_json, fx_json, fx_corr_json, sentiment_j
             className="text-muted small",
         ), False
 
-    prices = pd.read_json(prices_json, orient="split")
-    fx_prices = pd.read_json(fx_json, orient="split")
-    fx_corr = pd.read_json(fx_corr_json, orient="index")
+    prices = pd.read_json(StringIO(prices_json), orient="split")
+    fx_prices = pd.read_json(StringIO(fx_json), orient="split")
+    fx_corr = pd.read_json(StringIO(fx_corr_json), orient="index")
     sentiment = json.loads(sentiment_json) if sentiment_json else {}
 
     board = opp_view.build_opportunity_board(prices, fx_prices, fx_corr, sentiment)
@@ -1236,7 +1241,7 @@ def update_risk_overview(commodity, risk_json, prices_json):
     country_risks = pd.DataFrame()
     if risk_json and risk_json != "{}":
         try:
-            country_risks = pd.read_json(risk_json, orient="index")
+            country_risks = pd.read_json(StringIO(risk_json), orient="index")
             geo_risk = commodity_geopolitical_risk(country_risks, commodity)
         except Exception:
             pass
@@ -1251,7 +1256,7 @@ def update_risk_overview(commodity, risk_json, prices_json):
     hv30 = None
     if prices_json:
         try:
-            prices = pd.read_json(prices_json, orient="split")
+            prices = pd.read_json(StringIO(prices_json), orient="split")
             hv_dict = historical_volatility(prices, [30])
             val = hv_dict[30][commodity].dropna()
             if not val.empty:
@@ -1293,7 +1298,7 @@ def update_country_risk_table(commodity, risk_json):
     country_risks = pd.DataFrame()
     if risk_json and risk_json != "{}":
         try:
-            country_risks = pd.read_json(risk_json, orient="index")
+            country_risks = pd.read_json(StringIO(risk_json), orient="index")
         except Exception:
             pass
     return risk_view.build_country_risk_table(commodity, country_risks)
@@ -1307,8 +1312,8 @@ def update_country_risk_table(commodity, risk_json):
     Input("store-fx-corr", "data"),
 )
 def update_exposure_map(commodity, metric, wb_json, fx_json):
-    wb_df = pd.read_json(wb_json or "{}", orient="index") if wb_json else pd.DataFrame()
-    fx_df = pd.read_json(fx_json or "{}", orient="index") if fx_json else pd.DataFrame()
+    wb_df = pd.read_json(StringIO(wb_json or "{}"), orient="index") if wb_json else pd.DataFrame()
+    fx_df = pd.read_json(StringIO(fx_json or "{}"), orient="index") if fx_json else pd.DataFrame()
 
     net_df = net_positions(commodity)
 
@@ -1347,8 +1352,8 @@ def update_country_detail(click_data, commodity, wb_json, fx_json):
     iso3 = click_data["points"][0].get("location", "")
     country_name = click_data["points"][0].get("hovertext", iso3)
 
-    wb_df = pd.read_json(wb_json or "{}", orient="index") if wb_json else pd.DataFrame()
-    fx_df = pd.read_json(fx_json or "{}", orient="index") if fx_json else pd.DataFrame()
+    wb_df = pd.read_json(StringIO(wb_json or "{}"), orient="index") if wb_json else pd.DataFrame()
+    fx_df = pd.read_json(StringIO(fx_json or "{}"), orient="index") if fx_json else pd.DataFrame()
 
     net_df = net_positions(commodity)
 
