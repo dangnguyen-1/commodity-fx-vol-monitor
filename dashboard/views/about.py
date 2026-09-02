@@ -16,7 +16,7 @@ from __future__ import annotations
 from dash import html
 import dash_bootstrap_components as dbc
 
-from config import COMMODITIES, UI_BLUE, UI_BORDER, UI_MUTED, UI_PANEL
+from config import COMMODITIES, UI_BORDER, UI_MUTED, UI_PANEL, UI_TEXT
 from data.fx import COMMODITY_FX_GROUPS, CURRENCY_PAIRS
 
 
@@ -129,19 +129,19 @@ def _section(title: str, body) -> dbc.Card:
 def _definition_rows(rows: list[tuple[str, str]]) -> html.Div:
     """Three levels, each its own colour so the page has visible structure.
 
-    The section heading is off-white display caps, the strongest thing on
-    the page. The item names below are blue, whose role in this palette is
-    informational and neutral data, which is what a list of tab and source
-    names is. Descriptions stay muted.
+    The section heading is blue display caps, the item names below it are
+    off-white, and the descriptions stay muted. The heading still reads as
+    the level above despite the quieter colour, because the display face,
+    uppercase and tracking carry the rank rather than brightness alone.
 
-    They previously shared the off-white, so a heading and the names under
-    it read as one flat block.
+    Heading and names shared the off-white at first, which made each
+    section read as one flat block.
     """
     return html.Div([
         dbc.Row(
             [
                 dbc.Col(
-                    html.Div(name, style={"color": UI_BLUE, "fontWeight": 600}),
+                    html.Div(name, style={"color": UI_TEXT, "fontWeight": 600}),
                     md=3,
                 ),
                 dbc.Col(
