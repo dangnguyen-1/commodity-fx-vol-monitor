@@ -276,7 +276,7 @@ def get_unscored_articles():
     # bound and re-filters the same rejects forever.
     if skipped:
         mark_skipped(skipped)
-        print(f"Skipped {len(skipped)} articles mentioning no tracked asset.")
+        print(f"Skipped {len(skipped)} articles as corporate filler.")
 
     # The cap is applied after filtering, not before. Taking the first 100
     # rows and then filtering them down would starve the run whenever a
