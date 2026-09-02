@@ -1,10 +1,10 @@
 """
 Commodity news sentiment via the pipeline's read-only API
 (api/app.py's /news/latest route) — LLM-classified real
-headlines with direction, confidence, and reasoning, not raw GDELT tone
+headlines with direction, confidence, and reasoning, rather than raw tone
 averaging. Sentiment is scaled by 10 (pipeline sentiment is -1..+1; the
 rest of this app's thresholds and the confluence screener were built
-around GDELT's roughly -10..+10 tone range) so nothing downstream needs
+to a roughly -10..+10 tone range) so nothing downstream needs
 to change to accommodate the new source.
 """
 
@@ -20,7 +20,7 @@ from config import PIPELINE_API_BASE_URL
 logger = logging.getLogger(__name__)
 
 _REQUEST_TIMEOUT = 8
-_CACHE_TTL = 15 * 60  # 15 minutes — matches the old GDELT cache cadence
+_CACHE_TTL = 15 * 60  # 15 minutes
 
 # Circuit breaker: once the pipeline API proves unreachable, stop spending
 # a full timeout on every subsequent commodity switch for a while. Nine
@@ -122,7 +122,7 @@ def commodity_news(commodity: str, max_records: int = 8) -> list[dict]:
 def news_sentiment_score(commodity: str) -> float:
     """
     Mean classified sentiment for latest commodity news, scaled to match
-    the old GDELT tone range. Negative = bearish/risk-on. Returns float in
+    a -10..+10 tone range. Negative = bearish/risk-on. Returns float in
     roughly [-10, +10] range (0.0 when nothing's been classified for this
     commodity yet, same as "no news found").
     """

@@ -1,6 +1,6 @@
 """
 Currencies tab — the 14 tracked FX pairs get the same board treatment as the
-9 commodities: their own price tiles and their own volatility chart, not
+the commodities: their own price tiles and their own volatility chart, not
 just a correlation input buried in another tab.
 """
 
@@ -69,7 +69,7 @@ def build_summary_cards(
     ui_red: str,
     ui_muted: str,
 ) -> list:
-    """Board tiles for the 14 currency pairs — price, 1D move, HV30. No alert
+    """Board tiles for the tracked currency pairs: price, 1D move, HV30. No alert
     threshold exists for FX yet, so tiles stay in the plain (non-amber) state;
     the confluence screener on the Opportunities tab is where FX volatility
     actually gets judged against something."""

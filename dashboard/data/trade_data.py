@@ -1,7 +1,7 @@
 """
 Commodity trade flows for Sankey diagrams and net-position maps.
 
-Three layers, tried in order: the paper-trading pipeline's own UN Comtrade
+Three layers, tried in order: the pipeline's own UN Comtrade
 feed (data/pipeline_trade.py — pre-aggregated, no rate limits), the free
 public Comtrade API (data/comtrade.py — real API calls, real rate limits)
 for whatever the pipeline doesn't have, and this file's static table when
@@ -404,7 +404,7 @@ def _live_flows(commodity_name: str) -> tuple[pd.DataFrame, str | None, str]:
 
 def data_source_label(commodity_name: str) -> str:
     """For the UI caption — tells the user whether they're looking at the
-    paper-trading pipeline's live feed, the free Comtrade API fallback, or
+    pipeline's live feed, the free Comtrade API fallback, or
     the static fallback, and which window, rather than a blanket claim
     that's wrong for whichever mode isn't active."""
     flows, period, source = _live_flows(commodity_name)

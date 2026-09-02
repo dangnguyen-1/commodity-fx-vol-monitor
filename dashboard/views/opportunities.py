@@ -208,8 +208,9 @@ def build_opportunity_board(
     scored = len(sentiment)
     if scored < len(NAMES):
         pending_note = html.Div(
-            f"Sentiment scored for {scored}/{len(NAMES)} commodities. "
-            "the rest read as neutral (0.0) until their news fetch completes.",
+            f"Sentiment scored for {scored} of {len(NAMES)} commodities. "
+            "The rest read as neutral (0.0) until their news fetch "
+            "completes.",
             className="text-muted small mb-2",
         )
 

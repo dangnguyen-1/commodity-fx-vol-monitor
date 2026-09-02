@@ -28,7 +28,7 @@ context as gate-board-style panels — leaving convinced this is a real
 cross-domain instrument, not a chart-library demo.
 
 FIRST VIEWPORT: Board header (title, live dot, mono "updated" readout,
-refresh) → nine flip tiles (name/price/return/HV, alert tiles lit amber)
+refresh) -> one flip tile per commodity (name/price/return/HV, alert
 → gate-strip tabs → tab content.
 
 FINISH: unreviewed and undocumented is unfinished; this build ends with
@@ -218,16 +218,29 @@ def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
 # paper-trading engine (see docs/PAPER_TRADING_HISTORY.md). One mode means
 # the tab list is static, so it is built once in the layout rather than by a
 # callback watching a switch that no longer exists.
+# Ordered as an argument rather than by when each tab was written. It runs
+# observation, then the relationship, then the mechanism behind it, then
+# current context, and finishes on the synthesis:
+#
+#   Volatility, Returns, Alerts   what the commodities are doing
+#   Currencies, Correlation       how the currencies move with them
+#   Trade Flows, Country Exposure why that link exists, and on whom
+#   Risk & News                   what is happening right now
+#   Opportunities                 where all three signals agree
+#
+# Opportunities previously sat fourth, ahead of the trade data that explains
+# it and the news sentiment it consumes, so the conclusion was presented
+# before any of its inputs.
 TABS = [
     ("Volatility", "vol"),
     ("Returns & Trends", "returns"),
+    ("Alerts", "alerts-tab"),
     ("Currencies", "fx"),
     ("Correlation", "corr"),
-    ("Opportunities", "opportunities"),
-    ("Alerts", "alerts-tab"),
-    ("Country Exposure", "country-exp"),
     ("Trade Flows", "trade-flows"),
+    ("Country Exposure", "country-exp"),
     ("Risk & News", "risk-news"),
+    ("Opportunities", "opportunities"),
 ]
 
 
@@ -313,7 +326,7 @@ def load_data(_clicks, _interval):
         prices_raw = _fetch(YAHOO_TICKERS, lookback_days=365)
         prices_raw.rename(columns=YAHOO_TO_NAME, inplace=True)
     elif DATA_SOURCE == "pipeline":
-        # TradingView (via the paper-trading pipeline's API) first, Yahoo
+        # TradingView (via the pipeline's API) first, Yahoo
         # Finance fills in only whatever the pipeline doesn't track —
         # see data/market_data.py.
         from data.market_data import fetch_prices as _fetch
@@ -355,7 +368,7 @@ def update_summary(json_data):
             for a in alerts
         ]
         banner = dbc.Alert(
-            [html.Span("GATE CHANGE: VOLATILITY", className="board-alert-label"), *items],
+            [html.Span("VOLATILITY ALERT", className="board-alert-label"), *items],
             color="warning",
             className="board-alert py-2 mb-0",
         )
@@ -695,10 +708,11 @@ def _render_correlation(prices: pd.DataFrame) -> html.Div:
         html.H6("Relationship History (Rolling, Last 5 Years)", className="text-muted mb-2 mt-4"),
         html.P(
             "How this specific pair's beta, correlation, and R² have moved over "
-            "the last five years. A single current snapshot cannot show a "
-            "relationship strengthening or decaying, this can. A shorter window "
-            "reacts fast and is noisy; a longer one is smooth and stable, "
-            "neither is \"more correct.\"",
+            "the last five years. A single snapshot cannot show a "
+            "relationship strengthening or decaying; a rolling view can. A "
+            "shorter window reacts quickly and is noisy, a longer one is "
+            "smoother and slower to turn, and neither is more correct than "
+            "the other.",
             className="text-muted small mb-2",
         ),
         dbc.Row([
@@ -1056,7 +1070,7 @@ def load_geo_data(active_tab, prices_json, wb_cached, fx_cached, risk_cached, fx
 def load_fx_prices(active_tab, fx_prices_cached):
     """Lazily fetch the FX pairs' own price history — a separate callback
     from sentiment below so this fast Yahoo fetch isn't stuck behind the
-    slow nine-call GDELT sentiment loop; Dash runs independent callbacks
+    slow per-commodity sentiment loop; Dash runs independent callbacks
     concurrently, a single callback with two Outputs would not return
     either until both were done."""
     if active_tab not in ("fx", "opportunities") or fx_prices_cached:
@@ -1155,7 +1169,7 @@ def update_fx_chart(selected_names, selected_windows, fx_json):
 )
 def update_opportunity_board(_n, prices_json, fx_json, fx_corr_json, sentiment_json):
     """Renders as soon as the fast inputs (prices, FX prices, correlation)
-    are ready. Sentiment is the slowest input (nine sequential GDELT calls)
+    are ready. Sentiment is the slowest input (one classified-news lookup per commodity)
     and is never a hard blocker: a commodity with no sentiment score yet
     reads as neutral (0.0) rather than holding the whole board hostage —
     the poll keeps ticking and the board quietly fills in sentiment once
@@ -1234,7 +1248,7 @@ def update_news_feed(commodity):
         # max_records=20 matches news_sentiment_score's internal call
         # (used by update_risk_overview, fired by the same commodity
         # dropdown) — same cache key, so whichever callback runs first
-        # is the only one that actually hits GDELT; this one just slices
+        # is the only one that actually fetches news; this one just slices
         # the top 8 for display instead of issuing its own query.
         articles = commodity_news(commodity, max_records=20)[:8]
     except Exception:

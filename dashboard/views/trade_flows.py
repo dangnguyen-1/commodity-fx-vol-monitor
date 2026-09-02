@@ -38,7 +38,7 @@ def layout() -> html.Div:
     return html.Div([
         html.P(
             "Click a country to see its bilateral partners: who it "
-            "sends to and who it buys from. “N/A” means that side only "
+            "sends to and who it buys from. \"N/A\" means that side only "
             "reports a world total to UN Comtrade, not named countries.",
             className="text-muted small mb-2",
         ),

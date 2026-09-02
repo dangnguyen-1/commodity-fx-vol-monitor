@@ -4,7 +4,6 @@ Political risk scoring per country (1–10 scale, 10 = highest risk).
 Combines:
   1. World Bank Political Stability indicator (baseline structural risk)
   2. Active conflicts / sanctions (static list, updated periodically)
-  3. GDELT news sentiment for the country (current events adjustment)
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@ import os
 
 # ---------------------------------------------------------------------------
 # Data source: "pipeline" | "bloomberg" | "yahoo" | "mock" — env-overridable.
-# "pipeline" (the default) tries the paper-trading pipeline's live
+# "pipeline" (the default) tries the pipeline's live
 # TradingView feed first and falls back to Yahoo Finance per-instrument for
 # whatever the pipeline doesn't track (see data/market_data.py) — this is
 # the real, "best version" data path. "yahoo" forces Yahoo Finance only,
@@ -17,7 +17,7 @@ import os
 # ---------------------------------------------------------------------------
 DATA_SOURCE: str = os.environ.get("DATA_SOURCE", "pipeline")
 
-# The paper-trading pipeline's read-only API (data_collector's TradingView
+# The pipeline's read-only API (data_collector's TradingView
 # feed + UN Comtrade feed, via api/app.py's /market-data and
 # /trade-data routes). Market data always tries this first and falls back
 # to Yahoo Finance only for symbols it doesn't have — see data/market_data.py.

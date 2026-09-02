@@ -107,9 +107,9 @@ def build_news_feed(articles: list[dict]) -> html.Div:
     if not articles:
         if news_service_unreachable():
             return html.Div(
-                "News service (GDELT) is unreachable. Retrying "
-                "automatically in the background. This is a live third-party "
-                "dependency, not a broken tab.",
+                "The news service is unreachable. It retries automatically "
+                "in the background, so this is a temporary dependency "
+                "failure rather than a broken tab.",
                 className="text-muted small",
             )
         return html.Div("No recent news found for this commodity.", className="text-muted small")

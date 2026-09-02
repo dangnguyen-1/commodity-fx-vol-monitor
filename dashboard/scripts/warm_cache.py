@@ -8,7 +8,7 @@ rate limiting can stretch that first load past 60-90 seconds, long enough
 to trip some platforms' request/proxy timeouts and show an error instead
 of the data. Run this once as part of your platform's build or release
 step (before the web process starts taking traffic), not inline in a
-request — it can take several minutes across all 9 commodities.
+request. It can take several minutes across every tracked commodity.
 
 Safe to run repeatedly: every fetch it triggers already goes through this
 app's normal disk caches (7-day TTL for Comtrade, 24h for World Bank), so

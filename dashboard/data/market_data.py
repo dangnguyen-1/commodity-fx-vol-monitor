@@ -1,5 +1,5 @@
 """
-Market data fetcher — sourced from the paper-trading pipeline's live
+Market data fetcher — sourced from the pipeline's live
 TradingView feed (via its read-only API, see api/app.py's
 /market-data route), blending the pre-aggregated daily-bar table (long
 history) with raw one-minute ticks (today's price, always live) so
