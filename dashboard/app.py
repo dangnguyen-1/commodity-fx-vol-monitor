@@ -304,15 +304,25 @@ app.layout = dbc.Container(
                     ],
                     width="auto",
                 ),
+                # Timestamp and button travel together on the right. The
+                # timestamp used to sit immediately after the title, which
+                # read as a subtitle and now collides with the byline that
+                # genuinely is one. Metadata before the action, so it reads
+                # "updated at X" and then the control that changes it.
                 dbc.Col(
-                    html.Small(id="last-updated", className="board-subtitle"),
-                    className="d-flex align-items-center",
-                ),
-                dbc.Col(
-                    dbc.Button(
-                        "Refresh",
-                        id="refresh-btn",
-                        className="board-refresh-btn float-end",
+                    html.Div(
+                        [
+                            html.Small(
+                                id="last-updated",
+                                className="board-subtitle me-3",
+                            ),
+                            dbc.Button(
+                                "Refresh",
+                                id="refresh-btn",
+                                className="board-refresh-btn",
+                            ),
+                        ],
+                        className="d-flex align-items-center justify-content-end",
                     ),
                     width="auto",
                     className="ms-auto",
