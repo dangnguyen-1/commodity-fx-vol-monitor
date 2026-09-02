@@ -1261,10 +1261,11 @@ def update_news_feed(commodity):
     try:
         # max_records=20 matches news_sentiment_score's internal call
         # (used by update_risk_overview, fired by the same commodity
-        # dropdown) — same cache key, so whichever callback runs first
-        # is the only one that actually fetches news; this one just slices
-        # the top 8 for display instead of issuing its own query.
-        articles = commodity_news(commodity, max_records=20)[:8]
+        # dropdown), so both share a cache key: whichever callback runs
+        # first is the only one that actually fetches, and this one just
+        # slices the top rows for display rather than issuing its own
+        # query. Keep the display count at or below 20 to preserve that.
+        articles = commodity_news(commodity, max_records=20)[:12]
     except Exception:
         articles = []
     return risk_view.build_news_feed(articles)
