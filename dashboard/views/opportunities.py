@@ -172,10 +172,21 @@ def build_opportunity_board(
                 ),
             ], className="row-flash" if confluence else "", style={"background": "var(--accent-dim)"} if confluence else {}))
 
+    # Headers carry their column's alignment. Bare html.Th left-aligns,
+    # which left every heading here sitting off to the side of the figures
+    # it named.
     header = html.Thead(html.Tr([
-        html.Th(c) for c in [
-            "Commodity", "Currency", "5D Move", "Vol vs Threshold",
-            "Correlation", "Relationship", "Sentiment", "Call", "Signal",
+        html.Th(label, style={"textAlign": align})
+        for label, align in [
+            ("Commodity", "left"),
+            ("Currency", "left"),
+            ("5D Move", "right"),
+            ("Vol vs Threshold", "right"),
+            ("Correlation", "right"),
+            ("Relationship", "center"),
+            ("Sentiment", "right"),
+            ("Call", "center"),
+            ("Signal", "center"),
         ]
     ]))
 

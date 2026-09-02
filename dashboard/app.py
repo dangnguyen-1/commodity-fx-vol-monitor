@@ -553,11 +553,26 @@ def _render_returns(prices: pd.DataFrame, hv_dict: dict) -> html.Div:
             )
         )
 
+    # Each header carries its column's alignment. They used to be bare
+    # html.Th, which Bootstrap left-aligns, while every value cell below is
+    # right-aligned (numbers) or centred (trend). The result was a header row
+    # that did not sit above the figures it named.
+    COLUMNS = [
+        ("Commodity", "left"),
+        ("1D %", "right"),
+        ("5D %", "right"),
+        ("30D %", "right"),
+        ("MA20", "right"),
+        ("MA50", "right"),
+        ("HV30", "right"),
+        ("Trend", "center"),
+    ]
+
     header = html.Thead(
         html.Tr(
             [
-                html.Th(c)
-                for c in ["Commodity", "1D %", "5D %", "30D %", "MA20", "MA50", "HV30", "Trend"]
+                html.Th(label, style={"textAlign": align})
+                for label, align in COLUMNS
             ]
         )
     )
@@ -915,11 +930,21 @@ def _render_alerts(hv_dict: dict) -> html.Div:
             )
         )
 
+    # Same fix as the returns table: bare html.Th left-aligns, while the
+    # numeric cells below are right-aligned and Status is centred.
     header = html.Thead(
         html.Tr(
             [
-                html.Th(c)
-                for c in ["Commodity", "Group", "Threshold", "HV30", "HV60", "HV90", "Status"]
+                html.Th(label, style={"textAlign": align})
+                for label, align in [
+                    ("Commodity", "left"),
+                    ("Group", "left"),
+                    ("Threshold", "right"),
+                    ("HV30", "right"),
+                    ("HV60", "right"),
+                    ("HV90", "right"),
+                    ("Status", "center"),
+                ]
             ]
         )
     )

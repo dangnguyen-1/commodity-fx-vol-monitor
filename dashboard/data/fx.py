@@ -23,44 +23,60 @@ logger = logging.getLogger(__name__)
 # where the TradingView collector doesn't track that currency at all, in
 # which case this pair is Yahoo-only.
 CURRENCY_PAIRS: dict[str, dict] = {
-    # Energy-linked
+    # Ordered the same way as config.COMMODITIES: neighbours share a driver,
+    # because this order is what the Currencies tab renders and a reader
+    # compares whatever sits side by side. Exporters first, grouped by what
+    # they sell, then the importers.
+    #
+    # "primary" stays one of Energy, Metals or Agriculture, since app.py and
+    # country_exposure.py both read it. The finer grouping below is carried
+    # by position, not by new group names.
+
+    # Energy exporters.
     "CAN": {"ticker": "CADUSD=X", "tradingview": "DERIVED:CADUSD",  "name": "Canadian Dollar",    "primary": "Energy"},
     "NOR": {"ticker": "NOKUSD=X", "tradingview": "DERIVED:NOKUSD",  "name": "Norwegian Krone",    "primary": "Energy"},
     "RUS": {"ticker": "RUBUSD=X", "tradingview": "DERIVED:RUBUSD",  "name": "Russian Ruble",      "primary": "Energy"},
     "MEX": {"ticker": "MXNUSD=X", "tradingview": "DERIVED:MXNUSD",  "name": "Mexican Peso",       "primary": "Energy"},
-    "BRA": {"ticker": "BRLUSD=X", "tradingview": "FX_IDC:BRLUSD",   "name": "Brazilian Real",     "primary": "Agriculture"},
     "COL": {"ticker": "COPUSD=X", "tradingview": "DERIVED:COPUSD",  "name": "Colombian Peso",     "primary": "Energy"},
-    # Metals-linked
+
+    # Metals exporters: the diversified one, then precious, then the copper
+    # belt, which is four currencies driven by substantially the same price.
     "AUS": {"ticker": "AUDUSD=X", "tradingview": "FX:AUDUSD",       "name": "Australian Dollar",  "primary": "Metals"},
-    "CHL": {"ticker": "CLPUSD=X", "tradingview": "DERIVED:CLPUSD",  "name": "Chilean Peso",       "primary": "Metals"},
     "ZAF": {"ticker": "ZARUSD=X", "tradingview": "DERIVED:ZARUSD",  "name": "South African Rand", "primary": "Metals"},
+    # Africa's largest gold producer, roughly sixth globally.
+    "GHA": {"ticker": "GHSUSD=X", "tradingview": "DERIVED:GHSUSD",  "name": "Ghanaian Cedi",      "primary": "Metals"},
+    "CHL": {"ticker": "CLPUSD=X", "tradingview": "DERIVED:CLPUSD",  "name": "Chilean Peso",       "primary": "Metals"},
     "PER": {"ticker": "PENUSD=X", "tradingview": "DERIVED:PENUSD",  "name": "Peruvian Sol",       "primary": "Metals"},
-    # World's #2 copper producer (after Chile) — Kamoa-Kakula alone has
-    # made the DRC a bigger copper story than most tracked currencies here.
+    # World's #2 copper producer, on the back of Kamoa-Kakula.
     "COD": {"ticker": "CDFUSD=X", "tradingview": "DERIVED:CDFUSD",  "name": "Congolese Franc",    "primary": "Metals"},
     # Africa's #2 copper producer, targeting 1M+ tonnes in 2026.
     "ZMB": {"ticker": "ZMWUSD=X", "tradingview": "DERIVED:ZMWUSD",  "name": "Zambian Kwacha",     "primary": "Metals"},
-    # Africa's largest gold producer, ~6th globally and still growing.
-    "GHA": {"ticker": "GHSUSD=X", "tradingview": "DERIVED:GHSUSD",  "name": "Ghanaian Cedi",      "primary": "Metals"},
-    # Agriculture-linked
+
+    # Agriculture exporters: the soy complex, then the wheat belt.
+    "BRA": {"ticker": "BRLUSD=X", "tradingview": "FX_IDC:BRLUSD",   "name": "Brazilian Real",     "primary": "Agriculture"},
     "ARG": {"ticker": "ARSUSD=X", "tradingview": "DERIVED:ARSUSD",  "name": "Argentine Peso",     "primary": "Agriculture"},
-    "UKR": {"ticker": "UAHUSD=X", "tradingview": "DERIVED:UAHUSD",  "name": "Ukrainian Hryvnia",  "primary": "Agriculture"},
-    "KAZ": {"ticker": "KZTUSD=X", "tradingview": "DERIVED:KZTUSD",  "name": "Kazakhstani Tenge",  "primary": "Agriculture"},
     # World's #3 soybean exporter (~3.4M tonnes/year).
     "PRY": {"ticker": "PYGUSD=X", "tradingview": "DERIVED:PYGUSD",  "name": "Paraguayan Guarani", "primary": "Agriculture"},
-    # Importers and clearing centres. Not commodity exporters, and here on
-    # purpose: every other currency above is exporter-side, so without these
-    # the terms-of-trade sign can only ever be tested in one direction. An
-    # importer's currency should move the opposite way to the same commodity.
+    "UKR": {"ticker": "UAHUSD=X", "tradingview": "DERIVED:UAHUSD",  "name": "Ukrainian Hryvnia",  "primary": "Agriculture"},
+    "KAZ": {"ticker": "KZTUSD=X", "tradingview": "DERIVED:KZTUSD",  "name": "Kazakhstani Tenge",  "primary": "Agriculture"},
+
+    # Importers and clearing centres. Not exporters, and here on purpose:
+    # everything above is exporter-side, so without these the terms-of-trade
+    # sign can only ever be tested in one direction. An importer's currency
+    # should move opposite to the same commodity.
     #
-    # GBR replaced CHE (Swiss Franc) here. Switzerland refines most of the
-    # world's gold, which is why it was tracked, but it reports none of it:
-    # all 5,226 of its Comtrade rows came back NULL, because Swiss customs
-    # excludes precious metals from the headline statistics. The UK is the
-    # other great gold clearing centre, at $766.9B of gross gold exports, and
-    # unlike Switzerland it actually reports. It also carries the energy
-    # import exposure the book was missing.
+    # DEU stands in for the euro area. Comtrade reports by country and there
+    # is no euro-area reporter, so the largest euro-area commodity importer
+    # carries the pair: net -$900B crude, -$629B gas, -$119B copper and
+    # -$117B coal over 2020-2025, a bigger import position than the UK's.
+    # The FX leg is EURUSD, so this is an approximation, and a defensible
+    # one only because Germany dominates euro-area industrial demand.
+    #
+    # New Zealand was the other candidate and was checked first: NZL reports
+    # nothing in these 26 categories, because dairy, meat and wool are not
+    # among them.
     "GBR": {"ticker": "GBPUSD=X", "tradingview": "FX:GBPUSD",       "name": "British Pound",      "primary": "Energy"},
+    "DEU": {"ticker": "EURUSD=X", "tradingview": "FX:EURUSD",       "name": "Euro",               "primary": "Energy"},
     "JPN": {"ticker": "JPYUSD=X", "tradingview": "DERIVED:JPYUSD",  "name": "Japanese Yen",       "primary": "Energy"},
 }
 
@@ -93,15 +109,15 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     # GBR is net -$117.6B in crude and the field this contract is named
     # after is British. It sits here as an importer, so its expected
     # sign is opposite to the exporters beside it.
-    "Brent Crude": ["CAN", "NOR", "RUS", "MEX", "COL", "GBR"],
-    "Natural Gas": ["RUS", "NOR", "AUS", "CAN", "GBR"],
+    "Brent Crude": ["CAN", "NOR", "RUS", "MEX", "COL", "GBR", "DEU"],
+    "Natural Gas": ["RUS", "NOR", "AUS", "CAN", "GBR", "DEU"],
     # Australia nets +$389B in coal over 2020-2025, more than double
     # Indonesia and its second largest export after iron ore. Indonesia
     # leads on volume among non-tracked currencies but the rupiah is not in
     # CURRENCY_PAIRS. COL is included on the same footing as in Coffee: a
     # genuine top-five seaborne exporter whose rows arrive with the widened
     # reporter list.
-    "Coal":        ["AUS", "ZAF", "CAN", "RUS", "COL"],
+    "Coal":        ["AUS", "ZAF", "CAN", "RUS", "COL", "DEU"],
     # RUS added: world's #2 gold producer. GHA added: Africa's #1 and
     # world's #6 gold producer (new currency, see CURRENCY_PAIRS).
     "Gold":        ["AUS", "ZAF", "CAN", "GBR", "RUS", "GHA"],
@@ -112,7 +128,7 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     # the back of Kamoa-Kakula. ZMB (Zambia) added: Africa's #2 producer,
     # targeting 1M+ tonnes in 2026. Both new currencies — see
     # CURRENCY_PAIRS.
-    "Copper":      ["CHL", "PER", "AUS", "ZAF", "COD", "ZMB"],
+    "Copper":      ["CHL", "PER", "AUS", "ZAF", "COD", "ZMB", "DEU"],
     # KAZ added: top-10 exporter, one of the fastest-growing (+46% in
     # 2024-25) — was already a tracked currency, just missing here.
     "Wheat":       ["AUS", "CAN", "RUS", "UKR", "ARG", "KAZ"],
@@ -141,7 +157,7 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     # Australia is not merely first here, it is +$614B net against Brazil's
     # +$220B, the most lopsided relationship anywhere in this table.
     "Iron Ore":    ["AUS", "BRA", "ZAF", "CAN"],
-    "Aluminium":   ["CAN", "AUS", "RUS"],
+    "Aluminium":   ["CAN", "AUS", "RUS", "DEU"],
     # COL carries no Comtrade rows because Colombia is not one of the 30
     # reporters the collector requests, so it is included on the economics
     # (third largest coffee exporter globally) and contributes to the price
