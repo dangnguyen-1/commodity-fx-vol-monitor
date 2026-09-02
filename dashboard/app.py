@@ -146,22 +146,26 @@ def icon_triangle(direction: str, color: str) -> html.Span:
 
 
 def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
-    """Board tiles, reranked each refresh: breached-threshold names surface
-    first, then descending HV30 — the board reflects what changed, not a
-    fixed roster order."""
+    """Board tiles, in the roster order defined by config.COMMODITIES.
+
+    These used to rerank on every refresh, breached thresholds first and
+    then descending HV30, so the board showed what had changed. That is a
+    reasonable idea for a monitoring board and the wrong one here: it
+    reshuffled the tiles on every update, so gold might sit beside cotton
+    on one refresh and beside wheat on the next, and a reader comparing
+    two related contracts could never rely on where either one was.
+
+    The roster is now ordered so neighbours share a driver (gold beside
+    silver, the two PGMs together, crude before the thermal fuels), and
+    that only helps if the order actually holds. A breached threshold is
+    still obvious from the tile's own styling, which is where that signal
+    belongs, rather than from its position moving.
+    """
     last_price = prices.iloc[-1]
     ret_1d = (prices.iloc[-1] / prices.iloc[-2] - 1) * 100 if len(prices) >= 2 else pd.Series()
 
-    def _rank_key(name: str) -> tuple:
-        hv = hv30.get(name, np.nan)
-        threshold = ALERT_THRESHOLDS.get(name, 999)
-        alert = not np.isnan(hv) and hv > threshold
-        return (0 if alert else 1, -hv if not np.isnan(hv) else 0.0)
-
-    ranked_names = sorted(NAMES, key=_rank_key)
-
     cards = []
-    for name in ranked_names:
+    for name in NAMES:
         px_val = last_price.get(name, np.nan)
         r1d = ret_1d.get(name, np.nan)
         hv = hv30.get(name, np.nan)
