@@ -16,9 +16,28 @@ RSS_FEEDS = {
     "https://news.google.com/rss/search?q=site%3Areuters.com%20coal%20OR%20uranium%20OR%20lithium%20OR%20LNG&hl=en-US&gl=US&ceid=US%3Aen",
     ],
 
-    "marketwatch": [
-        "https://feeds.marketwatch.com/marketwatch/topstories/",
-        "https://feeds.marketwatch.com/marketwatch/marketpulse/",
+    # Bloomberg replaced MarketWatch, which was the weakest source in the
+    # book: 114 articles all-time against Reuters' 1,411, producing 52
+    # classified impact rows, about 2% of the total.
+    #
+    # These are Bloomberg's own syndication feeds rather than Google News
+    # proxying bloomberg.com. The proxy returns more items but noisier ones,
+    # including section pages such as "Markets - Bloomberg.com" that are not
+    # articles at all. The direct feeds return real headlines.
+    #
+    # Only these four exist and carry commodity or macro content. The
+    # obvious /energy/ and /commodities/ paths both 404, and technology,
+    # wealth and businessweek return noise or nothing.
+    #
+    # economics and politics earn their place: central bank and geopolitical
+    # stories are exactly what the classifier catches and a keyword filter
+    # cannot. "Oil Markets Predict Return To Iran Diplomacy" is a crude
+    # story with no price in it.
+    "bloomberg": [
+        "https://feeds.bloomberg.com/markets/news.rss",
+        "https://feeds.bloomberg.com/economics/news.rss",
+        "https://feeds.bloomberg.com/politics/news.rss",
+        "https://feeds.bloomberg.com/industries/news.rss",
     ],
 
     "investing": [
