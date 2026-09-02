@@ -95,6 +95,11 @@ SOURCES: list[tuple[str, str, str]] = [
         "commodity rather than correlation alone.",
     ),
     (
+        "World Bank",
+        "Country indicators",
+        "GDP and governance indicators behind the exposure and risk views.",
+    ),
+    (
         "Reuters, Bloomberg, Investing.com",
         "News",
         "Headlines collected continuously from published RSS feeds.",
@@ -106,11 +111,6 @@ SOURCES: list[tuple[str, str, str]] = [
         "a sentiment score. This is what makes a story like an attack on "
         "shipping legible as a crude signal, which keyword matching cannot "
         "do.",
-    ),
-    (
-        "World Bank",
-        "Country indicators",
-        "GDP and governance indicators behind the exposure and risk views.",
     ),
 ]
 
