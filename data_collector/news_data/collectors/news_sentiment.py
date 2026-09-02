@@ -86,6 +86,10 @@ SLEEP_SECONDS = float(os.getenv("OPENAI_SLEEP_SECONDS", "1.0"))
 # taking longer than expected to clear.
 MAX_CALLS_PER_DAY = int(os.getenv("OPENAI_MAX_CALLS_PER_DAY", "1000"))
 
+# Reclassify articles a previous model already handled. Off by default: a
+# model change should not silently re-spend the whole budget on history.
+RECLASSIFY_ALL = os.getenv("OPENAI_RECLASSIFY_ALL", "0").strip() in ("1", "true", "True")
+
 OUTPUT_DIR = Path("data_collector/news_data/output")
 FAILED_LOG_PATH = OUTPUT_DIR / "news_sentiment_failed_articles.csv"
 
@@ -207,10 +211,29 @@ def get_unscored_articles():
             ON nss.article_id = na.id
            AND nss.model = %s
         WHERE
-            nss.article_id IS NULL
-            OR (
-                nss.status NOT IN ('success', 'skipped')
-                AND nss.attempts < %s
+            -- Already handled by some model, so leave it alone. Status is
+            -- keyed by (article_id, model), which means changing the model
+            -- made every previously classified article look unscored again.
+            -- Switching to gpt-5.4-mini therefore queued the entire 2,700
+            -- article history for reclassification and consumed a full day's
+            -- budget in two hours, starving the news that had just arrived.
+            --
+            -- Those articles already carry gpt-5.5 classifications, and
+            -- /news/latest serves the newest row per (article, asset), so
+            -- nothing is lost by not redoing them. Set
+            -- OPENAI_RECLASSIFY_ALL=1 to force a full pass deliberately.
+            NOT EXISTS (
+                SELECT 1 FROM news_sentiment_status done
+                WHERE done.article_id = na.id
+                  AND done.status IN ('success', 'skipped')
+                  AND %s = 0
+            )
+            AND (
+                nss.article_id IS NULL
+                OR (
+                    nss.status NOT IN ('success', 'skipped')
+                    AND nss.attempts < %s
+                )
             )
         -- Newest first, deliberately. Under a daily cap the oldest-first
         -- ordering starved exactly the articles the tab exists to show,
@@ -224,7 +247,14 @@ def get_unscored_articles():
 
     try:
         with conn.cursor() as cur:
-            cur.execute(query, (MODEL_NAME, MAX_FAILED_ATTEMPTS_PER_ARTICLE))
+            cur.execute(
+                query,
+                (
+                    MODEL_NAME,
+                    1 if RECLASSIFY_ALL else 0,
+                    MAX_FAILED_ATTEMPTS_PER_ARTICLE,
+                ),
+            )
             articles = cur.fetchall()
     finally:
         conn.close()
