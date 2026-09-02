@@ -194,29 +194,41 @@ def latest_news(
     keep the dashboard working unchanged.
     """
     with read_connection() as cursor:
+        # DISTINCT ON keeps one row per article and asset, newest first.
+        #
+        # The classifier model is part of news_sentiment's identity, so
+        # changing it leaves both models' rows in the table for articles
+        # classified under each. Without this the same headline renders
+        # twice in the feed carrying two different sentiments, which looks
+        # like the pipeline contradicting itself. Ordering by created_at
+        # inside the DISTINCT ON means the current model wins as it
+        # reclassifies, and the old rows simply stop being served.
         cursor.execute(
             """
-            SELECT
-                ns.id                AS classification_id,
-                ns.asset,
-                ns.asset_type,
-                ns.direction,
-                ns.sentiment_score   AS sentiment,
-                ns.confidence,
-                ns.reasoning,
-                ns.model             AS model_name,
-                a.id                 AS article_id,
-                a.source             AS source_name,
-                a.title              AS headline,
-                a.url,
-                a.published          AS publication_timestamp_utc,
-                a.received_at_utc    AS retrieval_timestamp_utc
-            FROM news_sentiment ns
-            JOIN news_articles a ON a.id = ns.article_id
-            WHERE (%s::text IS NULL OR ns.asset = %s)
-              AND (%s::text IS NULL OR ns.asset_type = %s)
-              AND COALESCE(ns.confidence, 0) >= %s
-            ORDER BY a.published DESC NULLS LAST
+            SELECT * FROM (
+                SELECT DISTINCT ON (ns.article_id, ns.asset)
+                    ns.id                AS classification_id,
+                    ns.asset,
+                    ns.asset_type,
+                    ns.direction,
+                    ns.sentiment_score   AS sentiment,
+                    ns.confidence,
+                    ns.reasoning,
+                    ns.model             AS model_name,
+                    a.id                 AS article_id,
+                    a.source             AS source_name,
+                    a.title              AS headline,
+                    a.url,
+                    a.published          AS publication_timestamp_utc,
+                    a.received_at_utc    AS retrieval_timestamp_utc
+                FROM news_sentiment ns
+                JOIN news_articles a ON a.id = ns.article_id
+                WHERE (%s::text IS NULL OR ns.asset = %s)
+                  AND (%s::text IS NULL OR ns.asset_type = %s)
+                  AND COALESCE(ns.confidence, 0) >= %s
+                ORDER BY ns.article_id, ns.asset, ns.created_at_utc DESC
+            ) latest
+            ORDER BY publication_timestamp_utc DESC NULLS LAST
             LIMIT %s
             """,
             (
