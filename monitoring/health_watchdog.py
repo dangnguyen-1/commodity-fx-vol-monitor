@@ -268,67 +268,46 @@ def check_news(cursor) -> list[Finding]:
 
 
 def check_openai(cursor) -> list[Finding]:
-    """Spend against remaining credit, and whether spend is measured at all.
+    """Low-credit warning, only when a starting balance is configured.
 
-    The credit threshold is skipped unless a starting balance is
-    configured, because a threshold measured against an unknown budget
-    would be theatre.
+    Nothing fires without OPENAI_CREDIT_USD, because a threshold measured
+    against an unknown budget would be theatre. Ordinary usage goes out in
+    the weekly reminder rather than as an alert: an alert that cannot clear
+    itself is noise, and this one could not, since clearing it meant
+    configuring prices that were never going to be configured.
     """
-    findings: list[Finding] = []
+    credit = float(os.environ.get("OPENAI_CREDIT_USD", "0") or 0)
+    if credit <= 0:
+        return []
 
     cursor.execute(
         """
         SELECT COALESCE(SUM(estimated_cost_usd), 0),
                COALESCE(SUM(input_tokens), 0),
-               COALESCE(SUM(output_tokens), 0),
-               COUNT(*)
+               COALESCE(SUM(output_tokens), 0)
         FROM openai_usage
         """
     )
-    spent, input_tokens, output_tokens, calls = cursor.fetchone()
+    spent, input_tokens, output_tokens = cursor.fetchone()
     spent = float(spent or 0)
-
-    # Tokens billed but nothing recorded means the per-million prices are
-    # unset, so estimated_cost_usd is 0.00 on every row. That is not free
-    # usage, it is unmeasured usage, and it reads identically on a
-    # dashboard. It went unnoticed through 1,023 calls once already.
-    if int(calls or 0) > 0 and int(input_tokens or 0) > 0 and spent <= 0:
-        findings.append(
-            Finding(
-                key="openai_cost_untracked",
-                severity="warning",
-                message=(
-                    f"{int(calls):,} OpenAI calls recorded "
-                    f"({int(input_tokens):,} in / {int(output_tokens):,} "
-                    "out tokens) but the logged cost is $0.00. Set "
-                    "OPENAI_PRICE_INPUT_PER_1M and "
-                    "OPENAI_PRICE_OUTPUT_PER_1M in .env, or spend stays "
-                    "invisible."
-                ),
-            )
-        )
-
-    credit = float(os.environ.get("OPENAI_CREDIT_USD", "0") or 0)
-    if credit <= 0:
-        return findings
 
     alert_at = float(os.environ.get("OPENAI_ALERT_REMAINING_USD", "5") or 5)
     remaining = credit - spent
-    if remaining <= alert_at:
-        findings.append(
-            Finding(
-                key="openai_credit",
-                severity="critical",
-                message=(
-                    f"OpenAI credit down to ${remaining:.2f} of "
-                    f"${credit:.2f} (spent ${spent:.2f} on "
-                    f"{int(input_tokens):,} in / {int(output_tokens):,} out "
-                    "tokens). Top up before classification stops."
-                ),
-            )
-        )
+    if remaining > alert_at:
+        return []
 
-    return findings
+    return [
+        Finding(
+            key="openai_credit",
+            severity="critical",
+            message=(
+                f"OpenAI credit down to ${remaining:.2f} of ${credit:.2f} "
+                f"(spent ${spent:.2f} on {int(input_tokens):,} in / "
+                f"{int(output_tokens):,} out tokens). Top up before "
+                "classification stops."
+            ),
+        )
+    ]
 
 
 def check_disk(path: Path) -> list[Finding]:

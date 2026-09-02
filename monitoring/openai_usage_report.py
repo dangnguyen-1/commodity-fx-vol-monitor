@@ -79,15 +79,12 @@ def main() -> None:
     print(f"  last {args.days} days:   {int(calls):,} calls on {models}")
     print(f"  tokens:        {int(tokens_in):,} in / {int(tokens_out):,} out")
 
+    # Cost is only printed when prices are configured. Otherwise the volume
+    # figures above are the useful part and a "$0.00" line would read as
+    # free rather than as unmeasured.
     if cost > 0:
         per_30 = cost / max(args.days, 1) * 30
         print(f"  cost:          ${cost:.2f}  ->  ${per_30:.2f} per 30 days")
-    else:
-        # Saying "$0.00" here would be worse than saying nothing, because it
-        # reads as free rather than as unmeasured.
-        print("  cost:          NOT TRACKED. OPENAI_PRICE_INPUT_PER_1M and")
-        print("                 OPENAI_PRICE_OUTPUT_PER_1M are unset in .env,")
-        print("                 so every call records $0.00.")
 
     cap = int(os.environ.get("OPENAI_MAX_CALLS_PER_DAY", "1000") or 0)
     if cap:
