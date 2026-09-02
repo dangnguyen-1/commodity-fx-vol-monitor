@@ -53,8 +53,26 @@ TRADE_STALE_LIMIT_DAYS = 75
 # stopped, most often because OpenAI credit ran out. That fails silently,
 # and this is what catches it: the symptom is visible even though the
 # balance is not.
+#
+# Silence has one benign cause though, and it is a daily one: the classifier
+# stops calling once the daily budget is spent, so the tail of every busy UTC
+# day looks identical to an outage when read from the data alone.
+# classification_finding() separates the two before deciding how loud to be.
 CLASSIFICATION_STALE_LIMIT_MINUTES = 180
 ARTICLE_STALE_LIMIT_MINUTES = 240
+
+# Defaults mirror OPENAI_MAX_CALLS_PER_DAY and
+# OPENAI_MAX_FAILED_ATTEMPTS_PER_ARTICLE in news_sentiment.py. The
+# environment is read at call time rather than here, because load_dotenv()
+# runs inside main() and a module-level read would see only the shell's
+# environment and silently miss every value in .env.
+#
+# Duplicated rather than imported: news_sentiment.py constructs an OpenAI
+# client and creates its output directory at import time, and a watchdog
+# whose job is to report that the classifier is broken should not have to
+# load the classifier to do it.
+DEFAULT_MAX_CALLS_PER_DAY = 1000
+DEFAULT_MAX_FAILED_ATTEMPTS = 3
 
 DISK_WARN_PERCENT = 85.0
 
@@ -212,6 +230,164 @@ def check_trade_data(cursor) -> list[Finding]:
     return []
 
 
+def classification_calls_today(cursor) -> int | None:
+    """Calls the classifier itself counts against today's budget.
+
+    Deliberately the same expression as news_sentiment.calls_used_today(),
+    including its reliance on the session running in UTC. The question here
+    is not how many calls were really made, it is whether the classifier's
+    own accounting has closed the gate, so agreeing with that accounting
+    matters more than being independently right.
+    """
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM openai_usage
+        WHERE created_at_utc >= date_trunc('day', now() AT TIME ZONE 'UTC')
+        """
+    )
+    row = cursor.fetchone()
+    return None if row is None else int(row[0])
+
+
+def recent_classification_failures(cursor, minutes: float) -> int:
+    """Articles the classifier tried and failed inside the silent window.
+
+    Usage is only recorded from a response object, so a call that raises
+    never reaches openai_usage. Failures therefore have to be counted from
+    the status table instead, and their presence is what proves calls are
+    still being attempted.
+    """
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM news_sentiment_status
+        WHERE status = 'failed'
+          AND updated_at_utc >= now() - (%s || ' minutes')::interval
+        """,
+        (minutes,),
+    )
+    row = cursor.fetchone()
+    return 0 if row is None else int(row[0])
+
+
+def unclassified_backlog(cursor, max_attempts: int) -> int | None:
+    """Articles still queued for classification.
+
+    Mirrors news_sentiment.get_unscored_articles(), minus its filter on the
+    current model name, which this module has no business knowing. That
+    makes the count a ceiling rather than an exact queue depth after a model
+    change, which is fine: it is only ever compared against a whole day's
+    budget to answer whether the gap can still close.
+    """
+    cursor.execute(
+        """
+        SELECT COUNT(*) FROM news_articles na
+        WHERE NOT EXISTS (
+            SELECT 1 FROM news_sentiment_status done
+            JOIN news_articles seen ON seen.id = done.article_id
+            WHERE seen.title = na.title
+              AND done.status IN ('success', 'skipped')
+        )
+        AND NOT EXISTS (
+            SELECT 1 FROM news_sentiment_status gave_up
+            WHERE gave_up.article_id = na.id
+              AND gave_up.attempts >= %s
+        )
+        """,
+        (max_attempts,),
+    )
+    row = cursor.fetchone()
+    return None if row is None else int(row[0])
+
+
+def classification_finding(cursor, stale_minutes: float) -> Finding | None:
+    """Why classification stopped, which decides how loud this should be.
+
+    Spending the daily budget and losing OpenAI credit produce exactly the
+    same silence in news_sentiment, and only one of them is a problem. They
+    are told apart by how the day's calls ended: a spent budget leaves a
+    full day of usage recorded and the classifier waiting for the UTC
+    rollover, while a credit or key failure records almost no usage and a
+    run of 'failed' rows instead.
+    """
+    budget = int(
+        os.getenv("OPENAI_MAX_CALLS_PER_DAY", str(DEFAULT_MAX_CALLS_PER_DAY))
+    )
+    max_attempts = int(
+        os.getenv(
+            "OPENAI_MAX_FAILED_ATTEMPTS_PER_ARTICLE",
+            str(DEFAULT_MAX_FAILED_ATTEMPTS),
+        )
+    )
+
+    try:
+        calls_today = classification_calls_today(cursor)
+        failures = recent_classification_failures(
+            cursor, CLASSIFICATION_STALE_LIMIT_MINUTES
+        )
+        backlog = unclassified_backlog(cursor, max_attempts)
+    except Exception as error:  # noqa: BLE001
+        # The explanation must never swallow the alert. If the budget cannot
+        # be read the outage is still real, so fall through to reporting it.
+        # Safe to continue on the same cursor: the connection is autocommit,
+        # so a failed statement is not holding a broken transaction open.
+        print(f"[watchdog] could not read classifier budget state: {error}")
+        calls_today, failures, backlog = None, 0, None
+
+    budget_spent = (
+        budget > 0 and calls_today is not None and calls_today >= budget
+    )
+
+    # Failures inside the window mean calls are still being attempted, which
+    # rules the budget out on its own: the gate returns before spending
+    # anything, so a closed gate cannot produce them.
+    if failures or not budget_spent:
+        if failures:
+            detail = (
+                f"{failures} failed in that window, so this is not the "
+                "daily budget"
+            )
+        elif calls_today is not None:
+            detail = (
+                f"only {calls_today} of {budget} daily calls used, so this "
+                "is not the daily budget"
+            )
+        else:
+            detail = "budget state unreadable, so reporting regardless"
+        return Finding(
+            key="classification_stale",
+            severity="critical",
+            message=(
+                f"No news classified for {stale_minutes:.0f} minutes "
+                f"({detail}). Check OpenAI credit first, then the "
+                "news-sentiment-stream process."
+            ),
+        )
+
+    # Past this point the silence is the budget doing its job. That happens
+    # on any busy day and must not page, or the one alert that means
+    # something arrives in a stream of alerts that do not.
+    if backlog is not None and backlog > budget:
+        return Finding(
+            key="classification_backlog",
+            severity="warning",
+            message=(
+                f"Daily OpenAI budget spent ({calls_today}/{budget} calls) "
+                f"with {backlog} articles unclassified, which is more than "
+                "tomorrow's whole budget. The queue no longer drains, so "
+                "the news tab falls further behind each day: raise "
+                "OPENAI_MAX_CALLS_PER_DAY or accept the gap deliberately."
+            ),
+        )
+
+    queued = "?" if backlog is None else str(backlog)
+    print(
+        f"[watchdog] classification quiet {stale_minutes:.0f}m: daily budget "
+        f"spent ({calls_today}/{budget} calls), {queued} queued for the UTC "
+        "rollover. Expected, not reported."
+    )
+    return None
+
+
 def check_news(cursor) -> list[Finding]:
     """Collection and classification fail independently, so both are checked.
 
@@ -253,17 +429,9 @@ def check_news(cursor) -> list[Finding]:
         classified_minutes is not None
         and classified_minutes > CLASSIFICATION_STALE_LIMIT_MINUTES
     ):
-        findings.append(
-            Finding(
-                key="classification_stale",
-                severity="critical",
-                message=(
-                    f"No news classified for {classified_minutes:.0f} "
-                    "minutes. Check OpenAI credit first, then the "
-                    "news-sentiment-stream process."
-                ),
-            )
-        )
+        finding = classification_finding(cursor, classified_minutes)
+        if finding is not None:
+            findings.append(finding)
 
     return findings
 
