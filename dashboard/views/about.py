@@ -16,7 +16,7 @@ from __future__ import annotations
 from dash import html
 import dash_bootstrap_components as dbc
 
-from config import COMMODITIES, UI_BORDER, UI_MUTED, UI_PANEL, UI_TEXT
+from config import COMMODITIES, UI_BORDER, UI_PANEL, UI_TEXT
 from data.fx import COMMODITY_FX_GROUPS, CURRENCY_PAIRS
 
 
@@ -129,10 +129,11 @@ def _section(title: str, body) -> dbc.Card:
 def _definition_rows(rows: list[tuple[str, str]]) -> html.Div:
     """Three levels, each its own colour so the page has visible structure.
 
-    The section heading is blue display caps, the item names below it are
-    off-white, and the descriptions stay muted. The heading still reads as
-    the level above despite the quieter colour, because the display face,
-    uppercase and tracking carry the rank rather than brightness alone.
+    The section heading is blue display caps; the names and their
+    descriptions are both off-white, separated by weight rather than by
+    colour. The heading still reads as the level above despite the quieter
+    colour, because the display face, uppercase and tracking carry the rank
+    rather than brightness alone.
 
     Heading and names shared the off-white at first, which made each
     section read as one flat block.
@@ -145,7 +146,7 @@ def _definition_rows(rows: list[tuple[str, str]]) -> html.Div:
                     md=3,
                 ),
                 dbc.Col(
-                    html.Div(text, style={"color": UI_MUTED}),
+                    html.Div(text, style={"color": UI_TEXT}),
                     md=9,
                 ),
             ],
@@ -171,14 +172,14 @@ def layout() -> html.Div:
             f"{commodity_count} commodities and {currency_count} currencies, "
             f"in {pair_count} pairs built from trade data rather than from "
             "correlation alone.",
-            style={"color": UI_MUTED},
+            style={"color": UI_TEXT},
         ),
         html.P(
             "Pairings come from measured net exports: a currency appears "
             "against a commodity because its country genuinely leads in "
             "trading it, not because the two happened to correlate. Daily "
             "history runs from January 2010.",
-            style={"color": UI_MUTED, "marginBottom": 0},
+            style={"color": UI_TEXT, "marginBottom": 0},
         ),
     ], style={"fontSize": "0.88rem"})
 
@@ -190,7 +191,7 @@ def layout() -> html.Div:
             "often and their statistics are weaker than the liquid ones. "
             "News classification began mid-2026, so it covers recent "
             "activity only and cannot be compared against the price history.",
-            style={"color": UI_MUTED, "marginBottom": 0},
+            style={"color": UI_TEXT, "marginBottom": 0},
         ),
     ], style={"fontSize": "0.85rem"})
 
