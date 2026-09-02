@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -15,7 +16,54 @@ from data_collector.news_data.config.assets import ALL_ASSETS
 
 load_dotenv()
 
-MODEL_NAME = "gpt-5.5"
+# gpt-5.5 was held here while the paper-trading strategy consumed these
+# classifications, because changing the model mid-run would have made any
+# Confirmed-mode result a statement about the new classifier instead. That
+# strategy is gone, news now feeds one dashboard tab, and gpt-5.5 was
+# costing roughly $133 a month to do it. mini was measured at 73% agreement
+# on asset and direction pairs, and its known flaw is over-flagging, which
+# disqualified it for a trading signal and is harmless on a display.
+MODEL_NAME = os.getenv("OPENAI_CLASSIFIER_MODEL", "gpt-5.4-mini")
+
+# Articles not worth paying to classify.
+#
+# This is an exclusion list, and it started life as the opposite. Requiring
+# a commodity or currency keyword looked far more attractive: it skipped
+# 82.5% of the feed. Measured against articles that had already produced
+# real impacts, it also threw away 104 of them, including "Two Saudi tankers
+# struck in Strait of Hormuz" and "Brazil's Q2 GDP tops forecasts". The
+# first is an oil story containing no commodity word; the second reaches
+# BRL through macro reasoning no keyword list performs.
+#
+# So the premise was wrong. The feed is not mostly irrelevant, it is mostly
+# market news, and the only safely removable part is corporate filler:
+# insider share dealing, executive appointments, sport. That is 8.3% of the
+# feed and drops nothing that has ever yielded an impact. A smaller saving
+# than hoped, and the one that does not quietly degrade the tab.
+JUNK_PATTERN = re.compile(
+    r"""
+      (sells|buys|sold|bought)\s+\$[\d.,]+[mkb]?\s+(in|of|worth)
+    | \b(director|officer|ceo|cfo|coo|president|owner)\b.{0,40}\b(sells|buys)\b
+    | \b10%\s+owner\b
+    | \binsider\b
+    | \bmotogp\b | \bformula\s*1\b | \bf1\b | \bfootball\b | \bsoccer\b
+    | \bolympic | \btennis\b | \bnba\b | \bnfl\b
+    | \bvaluation\b.{0,30}\bbillion\b
+    | \bshare\s+buyback\b
+    | \bstock\s+split\b
+    | \bappoints\b.{0,30}\b(ceo|cfo|director|chair)\b
+    """,
+    re.IGNORECASE | re.VERBOSE,
+)
+
+
+def is_relevant(title: str, summary: str) -> bool:
+    """False only for content that is definitely not a market story.
+
+    Deliberately permissive. A wrongly skipped article is invisible and
+    gone; a wrongly classified one costs a fraction of a cent.
+    """
+    return not JUNK_PATTERN.search(f"{title} {summary}")
 
 MAX_ARTICLES_PER_RUN = int(os.getenv("OPENAI_MAX_ARTICLES_PER_RUN", "0"))
 MAX_RETRIES = int(os.getenv("OPENAI_MAX_RETRIES", "3"))
@@ -147,7 +195,7 @@ def get_unscored_articles():
         WHERE
             nss.article_id IS NULL
             OR (
-                nss.status != 'success'
+                nss.status NOT IN ('success', 'skipped')
                 AND nss.attempts < %s
             )
         ORDER BY na.id;
@@ -162,10 +210,45 @@ def get_unscored_articles():
     finally:
         conn.close()
 
-    if MAX_ARTICLES_PER_RUN > 0:
-        articles = articles[:MAX_ARTICLES_PER_RUN]
+    relevant = [a for a in articles if is_relevant(a[1], a[2])]
+    skipped = [a[0] for a in articles if not is_relevant(a[1], a[2])]
 
-    return articles
+    # Recorded as 'skipped' rather than simply passed over, so the next run
+    # does not rescan them. Without this the unscored query grows without
+    # bound and re-filters the same rejects forever.
+    if skipped:
+        mark_skipped(skipped)
+        print(f"Skipped {len(skipped)} articles mentioning no tracked asset.")
+
+    # The cap is applied after filtering, not before. Taking the first 100
+    # rows and then filtering them down would starve the run whenever a
+    # batch happened to be mostly irrelevant.
+    if MAX_ARTICLES_PER_RUN > 0:
+        relevant = relevant[:MAX_ARTICLES_PER_RUN]
+
+    return relevant
+
+
+def mark_skipped(article_ids: list[int]) -> None:
+    """Record articles that never went to the API, so they are not rescanned."""
+    query = """
+        INSERT INTO news_sentiment_status (
+            article_id, model, status, impacts_count, attempts, error
+        )
+        VALUES (%s, %s, 'skipped', 0, 0, NULL)
+        ON CONFLICT (article_id, model) DO UPDATE
+        SET status = 'skipped',
+            updated_at_utc = NOW();
+    """
+    conn = psycopg2.connect(get_database_url())
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.executemany(
+                    query, [(article_id, MODEL_NAME) for article_id in article_ids]
+                )
+    finally:
+        conn.close()
 
 
 # Per-million-token prices, from .env. Left at zero when unset, which makes
