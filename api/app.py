@@ -35,7 +35,7 @@ load_dotenv()
 API_VERSION = "0.2.0"
 
 app = FastAPI(
-    title="Commodity FX Volatility Tracker API",
+    title="Commodity FX Volatility Monitor API",
     version=API_VERSION,
     description=(
         "Read-only access to collected market prices, UN Comtrade flows "
@@ -69,7 +69,7 @@ def database_unavailable_handler(
 @app.get("/", tags=["system"])
 def root() -> dict:
     return {
-        "name": "Commodity FX Volatility Tracker API",
+        "name": "Commodity FX Volatility Monitor API",
         "version": API_VERSION,
         "routes": ["/health", "/market-data", "/trade-data", "/news/latest"],
     }

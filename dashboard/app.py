@@ -1,5 +1,5 @@
 """
-Commodity Price Volatility Tracker
+Commodity FX Volatility Monitor
 ------------------------------------
 Run: python3 app.py
 Then open http://localhost:8050 in your browser.
@@ -110,7 +110,7 @@ logger = logging.getLogger(__name__)
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.DARKLY],
-    title="Commodity FX Volatility Tracker",
+    title="Commodity FX Volatility Monitor",
     suppress_callback_exceptions=True,
 )
 
@@ -252,7 +252,7 @@ app.layout = dbc.Container(
                 dbc.Col(
                     [
                         html.Span(className="board-status-dot"),
-                        html.Span("Commodity FX Volatility Tracker", className="board-title"),
+                        html.Span("Commodity FX Volatility Monitor", className="board-title"),
                     ],
                     width="auto",
                     className="d-flex align-items-center",
