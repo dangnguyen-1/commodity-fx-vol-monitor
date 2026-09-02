@@ -1,13 +1,12 @@
-"""Checks that the collectors are actually collecting, and says so when not.
-
-Every check reads Postgres, which is the only database left. The previous
-version read the paper-trading SQLite state and watched process heartbeats;
-both are gone (see docs/PAPER_TRADING_HISTORY.md). What survives is the part
-that mattered anyway: whether data is still arriving.
+"""Checks that the collectors are actually collecting, and alerts when not.
 
 The failure this exists to catch is not a process crashing, which is loud.
-It is a collector that keeps running and quietly stops producing rows, which
-looks healthy from every angle except the data.
+It is a collector that keeps running and quietly stops producing rows,
+which looks healthy from every angle except the data. So every check reads
+freshness out of Postgres rather than asking whether a process is up.
+
+Findings are deduplicated by key and suppressed for ALERT_COOLDOWN_MINUTES,
+and a key that stops appearing is reported as RECOVERED.
 
 Run:
     .venv/bin/python3 -m monitoring.health_watchdog
@@ -271,10 +270,8 @@ def check_openai(cursor) -> list[Finding]:
     """Low-credit warning, only when a starting balance is configured.
 
     Nothing fires without OPENAI_CREDIT_USD, because a threshold measured
-    against an unknown budget would be theatre. Ordinary usage goes out in
-    the weekly reminder rather than as an alert: an alert that cannot clear
-    itself is noise, and this one could not, since clearing it meant
-    configuring prices that were never going to be configured.
+    against an unknown budget would be theatre. Ordinary usage is reported
+    by the weekly billing reminder instead.
     """
     credit = float(os.environ.get("OPENAI_CREDIT_USD", "0") or 0)
     if credit <= 0:

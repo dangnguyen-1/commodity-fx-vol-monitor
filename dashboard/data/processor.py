@@ -78,14 +78,11 @@ def is_breaching(current_vol, threshold: float) -> bool:
     """Whether a commodity counts as breaching its volatility threshold.
 
     The single definition used by every surface that shows alert state:
-    the banner, the board tiles, the Alerts table and its count. Each of
-    those used to test the raw figure while displaying it rounded to one
-    decimal, so Platinum at 35.04% against a 35.0% threshold lit up
-    everywhere while every number on screen read 35.0% against 35.0%.
-    Fixing only check_alerts left the banner disagreeing with the tiles.
+    the banner, the board tiles, the Alerts table and its count. Keeping it
+    in one place is what stops those four from disagreeing.
 
-    The test runs on the displayed value, so what a reader is shown always
-    justifies what they are told.
+    The comparison runs on the rounded, displayed value rather than the raw
+    one, so an alert never fires on two numbers that read as equal.
     """
     if pd.isna(current_vol):
         return False
@@ -101,11 +98,7 @@ def check_alerts(
     Return list of triggered alerts where current HV{window} > threshold.
     Each dict: {name, current_vol, threshold, excess}.
 
-    The comparison uses the rounded figure, not the raw one, so the banner
-    never contradicts itself. Comparing raw and displaying rounded put
-    "Platinum: 35.0% (threshold 35.0%)" on screen, which reads as a bug: the
-    true value was 35.04% and genuinely above the threshold, but nothing
-    shown to the reader said so.
+    Uses is_breaching(), so the comparison matches every other surface.
     """
     if window not in hv_dict:
         return []

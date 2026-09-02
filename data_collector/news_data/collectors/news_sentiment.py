@@ -16,29 +16,19 @@ from data_collector.news_data.config.assets import ALL_ASSETS
 
 load_dotenv()
 
-# gpt-5.5 was held here while the paper-trading strategy consumed these
-# classifications, because changing the model mid-run would have made any
-# Confirmed-mode result a statement about the new classifier instead. That
-# strategy is gone, news now feeds one dashboard tab, and gpt-5.5 was
-# costing roughly $133 a month to do it. mini was measured at 73% agreement
-# on asset and direction pairs, and its known flaw is over-flagging, which
-# disqualified it for a trading signal and is harmless on a display.
+# mini agrees with gpt-5.5 on 73% of (asset, direction) pairs at roughly a
+# tenth of the cost. It errs toward over-flagging, which is acceptable for
+# a display and would not be for a trading signal.
 MODEL_NAME = os.getenv("OPENAI_CLASSIFIER_MODEL", "gpt-5.4-mini")
 
 # Articles not worth paying to classify.
 #
-# This is an exclusion list, and it started life as the opposite. Requiring
-# a commodity or currency keyword looked far more attractive: it skipped
-# 82.5% of the feed. Measured against articles that had already produced
-# real impacts, it also threw away 104 of them, including "Two Saudi tankers
-# struck in Strait of Hormuz" and "Brazil's Q2 GDP tops forecasts". The
-# first is an oil story containing no commodity word; the second reaches
-# BRL through macro reasoning no keyword list performs.
-#
-# So the premise was wrong. The feed is not mostly irrelevant, it is mostly
-# market news, and the only safely removable part is corporate filler:
-# insider share dealing, executive appointments, sport. That is 8.3% of the
-# feed and drops nothing that has ever yielded an impact. A smaller saving
+# An exclusion list, deliberately, rather than a keyword allowlist. Most of
+# this feed is market news, and requiring a commodity or currency keyword
+# discards stories that reach an asset through reasoning rather than
+# vocabulary: "Two Saudi tankers struck in Strait of Hormuz" is a crude
+# story containing no commodity word. Only corporate filler is removed,
+# which is insider dealing, executive appointments and sport. A smaller saving
 # than hoped, and the one that does not quietly degrade the tab.
 JUNK_PATTERN = re.compile(
     r"""
@@ -72,18 +62,12 @@ MAX_FAILED_ATTEMPTS_PER_ARTICLE = int(
 )
 SLEEP_SECONDS = float(os.getenv("OPENAI_SLEEP_SECONDS", "1.0"))
 
-# Hard ceiling on API calls per UTC day. This is a budget, not a throttle:
-# once it is reached the classifier stops until tomorrow.
+# Hard ceiling on API calls per UTC day. A budget, not a throttle: once it
+# is reached the classifier stops until tomorrow.
 #
-# MAX_ARTICLES_PER_RUN caps a single run, not a day, and this loop wakes
-# every 60 seconds, so it permitted 144,000 calls a day. Nothing prevented a
-# feed change or a backlog from spending far more than intended, and a
-# weekly reminder would report it up to seven days late.
-#
-# 1,000 a day sits near the measured steady state of roughly 900, which at
-# gpt-5.4-mini pricing is about $15 a month. Raise it deliberately, having
-# looked at what a day actually costs, rather than because a backlog is
-# taking longer than expected to clear.
+# MAX_ARTICLES_PER_RUN caps a single run, not a day, so it cannot bound
+# spend on its own. 1,000 sits just above the steady-state rate, which is
+# roughly $15 a month at mini pricing.
 MAX_CALLS_PER_DAY = int(os.getenv("OPENAI_MAX_CALLS_PER_DAY", "1000"))
 
 # Reclassify articles a previous model already handled. Off by default: a
@@ -211,25 +195,17 @@ def get_unscored_articles():
             ON nss.article_id = na.id
            AND nss.model = %s
         WHERE
-            -- Already handled, matched on title rather than on id. The six
-            -- Reuters queries overlap, and Google News mints a different
-            -- redirect URL per query, so the same story arrives twice as
-            -- two rows that URL-based dedup cannot see. 295 of 2,936
-            -- articles were duplicated that way, and 603 classification
-            -- calls had gone on headlines already read. That is about a
-            -- tenth of a daily budget which is now binding.
+            -- Already handled, matched on title rather than on id.
             --
-            -- Also still true of the original case. Status is
-            -- keyed by (article_id, model), which means changing the model
-            -- made every previously classified article look unscored again.
-            -- Switching to gpt-5.4-mini therefore queued the entire 2,700
-            -- article history for reclassification and consumed a full day's
-            -- budget in two hours, starving the news that had just arrived.
+            -- Matching on title covers two cases. The overlapping Reuters
+            -- queries deliver one story under several Google News redirect
+            -- URLs, which URL dedup cannot see. And status is keyed by
+            -- (article_id, model), so a model change would otherwise queue
+            -- the entire history for reclassification.
             --
-            -- Those articles already carry gpt-5.5 classifications, and
-            -- /news/latest serves the newest row per (article, asset), so
-            -- nothing is lost by not redoing them. Set
-            -- OPENAI_RECLASSIFY_ALL=1 to force a full pass deliberately.
+            -- Neither is worth paying for: /news/latest serves the newest
+            -- row per (article, asset), so an existing classification is
+            -- still shown. OPENAI_RECLASSIFY_ALL=1 forces a full pass.
             NOT EXISTS (
                 SELECT 1 FROM news_sentiment_status done
                 JOIN news_articles seen ON seen.id = done.article_id
@@ -244,11 +220,8 @@ def get_unscored_articles():
                     AND nss.attempts < %s
                 )
             )
-        -- Newest first, deliberately. Under a daily cap the oldest-first
-        -- ordering starved exactly the articles the tab exists to show,
-        -- spending the budget on months-old news. Older articles keep
-        -- whatever classification they already have, so nothing is lost by
-        -- reaching them later or not at all.
+        -- Newest first, so a binding daily cap spends the budget on
+        -- current news rather than on backlog.
         ORDER BY na.id DESC;
     """
 
@@ -288,7 +261,10 @@ def get_unscored_articles():
 
 
 def mark_skipped(article_ids: list[int]) -> None:
-    """Record articles that never went to the API, so they are not rescanned."""
+    """Record articles that never went to the API, so they are not rescanned.
+
+    Without this the unscored query re-filters the same rejects every run.
+    """
     query = """
         INSERT INTO news_sentiment_status (
             article_id, model, status, impacts_count, attempts, error
@@ -544,9 +520,8 @@ def append_failure_log(article_id: int, title: str, error: str) -> None:
 def calls_used_today() -> int:
     """API calls already made this UTC day, successful or not.
 
-    Read from openai_usage rather than counted in memory, so the budget
-    survives a restart. A process that forgets its spending on every crash
-    has no budget at all.
+    Read from openai_usage rather than held in memory, so the budget
+    survives a restart.
     """
     conn = psycopg2.connect(get_database_url())
     try:

@@ -1,15 +1,11 @@
 """Read-only API over the collected commodity, FX, trade and news data.
 
-Serves the research dashboard. Three routes carry everything it draws:
-/market-data for prices, /trade-data for Comtrade flows, /news/latest for
-classified headlines.
+Serves the dashboard. Three routes carry everything it draws: /market-data
+for prices, /trade-data for Comtrade flows, /news/latest for classified
+headlines. /health reports per-source freshness.
 
-This replaces paper_trading/api/app.py, which had seventeen routes because
-ten of them served the paper-trading engine. That engine and its SQLite
-database are gone (see docs/PAPER_TRADING_HISTORY.md). /news/latest was the
-one research route that read the engine's database rather than Postgres,
-via a sync job that copied classified articles across; it now reads
-news_articles and news_sentiment directly, and the sync is gone with it.
+Bound to localhost. The dashboard calls it server-side, so it is never
+exposed publicly.
 
 Run:  uvicorn api.app:app --host 127.0.0.1 --port 8000
 """
@@ -189,20 +185,15 @@ def latest_news(
 
     Column aliases are load-bearing: dashboard/data/news.py reads
     `headline`, `source_name`, `publication_timestamp_utc` and `sentiment`,
-    which were the names the paper-trading schema used. Postgres stores
-    them as title, source, published and sentiment_score, so the aliases
-    keep the dashboard working unchanged.
+    while Postgres stores those as title, source, published and
+    sentiment_score.
     """
     with read_connection() as cursor:
-        # DISTINCT ON keeps one row per article and asset, newest first.
+        # One row per (article, asset), newest classification wins.
         #
-        # The classifier model is part of news_sentiment's identity, so
-        # changing it leaves both models' rows in the table for articles
-        # classified under each. Without this the same headline renders
-        # twice in the feed carrying two different sentiments, which looks
-        # like the pipeline contradicting itself. Ordering by created_at
-        # inside the DISTINCT ON means the current model wins as it
-        # reclassifies, and the old rows simply stop being served.
+        # The model is part of news_sentiment's identity, so an article
+        # classified under two models has a row for each. Without DISTINCT
+        # ON the same headline renders twice with different sentiments.
         cursor.execute(
             """
             SELECT * FROM (

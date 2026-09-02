@@ -80,19 +80,13 @@ class RequestJob:
 
     @property
     def roster_fingerprint(self) -> str:
-        """Short digest of the reporters this job was actually fetched for.
+        """Short digest of the reporters this job was fetched for.
 
-        This belongs in the checkpoint name because it is part of the
-        request. It used to be absent, and since COUNTRY_BATCH_SIZE puts
-        every reporter in a single batch, the batch index stayed at 01 no
-        matter who was in it. Adding a country therefore left all 936
-        checkpoint filenames unchanged, job_is_complete() found them and
-        returned True, and the new reporters were never requested. Nothing
-        raised and no log line appeared; the data simply never arrived.
-
-        With the roster in the name, changing it invalidates exactly the
-        jobs whose inputs changed, which is every job, and the next run
-        refetches them.
+        Part of the checkpoint name because it is part of the request.
+        COUNTRY_BATCH_SIZE puts every reporter in one batch, so the batch
+        index alone cannot distinguish two different rosters. Without this,
+        adding a country would leave every checkpoint filename unchanged
+        and the new reporter would never be requested.
         """
         joined = ",".join(sorted(self.countries)).encode()
         return hashlib.blake2s(joined, digest_size=3).hexdigest()

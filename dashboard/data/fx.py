@@ -225,11 +225,11 @@ def commodity_fx_relationship(
     return series so the three stats are internally consistent:
 
       correlation, Pearson correlation of log-returns.
-      beta       , the currency's sensitivity to a 1% commodity move
+      beta:       the currency's sensitivity to a 1% commodity move
                     (regressing currency returns on commodity returns);
                     derived as corr * std(currency) / std(commodity), the
                     standard identity for simple univariate regression.
-      r2         , share of the currency's return variance the commodity
+      r2:         share of the currency's return variance the commodity
                     move explains; equals correlation² for a univariate fit.
 
     `fx_prices`, if given, must be in the same shape fetch_fx_prices()
@@ -305,7 +305,7 @@ def rolling_relationship_series(
 ) -> pd.DataFrame:
     """
     Rolling `window`-trading-day (52-week) beta, correlation, and R² between
-    one commodity and one currency, recomputed at every point in history ,
+    one commodity and one currency, recomputed at every point in history,
     not a single current snapshot. This is what actually shows a
     relationship strengthening or decaying over years (e.g. CAD's beta to
     oil has drifted toward zero since 2022), which a single trailing-window

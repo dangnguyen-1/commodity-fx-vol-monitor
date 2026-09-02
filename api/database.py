@@ -1,12 +1,7 @@
 """Read-only access to the collected data in Postgres.
 
-Everything the research dashboard shows comes from here: market_data,
+Everything the dashboard shows comes from here: market_data,
 fundamental_trade_data and the news tables, all written by data_collector/.
-
-This used to sit under paper_trading/api/ alongside a second module that
-opened the strategy's SQLite state. That database is gone, and with it the
-distinction the old naming carried, so there is now one database and one
-connection helper.
 """
 
 from __future__ import annotations

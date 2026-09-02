@@ -22,11 +22,10 @@ logger = logging.getLogger(__name__)
 _REQUEST_TIMEOUT = 8
 _CACHE_TTL = 15 * 60  # 15 minutes
 
-# Circuit breaker: once the pipeline API proves unreachable, stop spending
-# a full timeout on every subsequent commodity switch for a while. Nine
-# commodities x an unreachable host used to mean the News tab could sit
-# "loading" for a long time; this caps the damage to one slow attempt per
-# cooldown window and falls back immediately otherwise.
+# Circuit breaker: once the API proves unreachable, stop spending a full
+# timeout on every subsequent commodity switch. Without it, one dead host
+# costs a timeout per commodity and the tab sits loading. This caps the
+# damage to one slow attempt per cooldown window.
 _CIRCUIT_COOLDOWN = 90  # seconds
 _last_failure_at: float | None = None
 

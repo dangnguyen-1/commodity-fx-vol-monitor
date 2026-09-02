@@ -20,7 +20,7 @@
 #     exactly what to edit before continuing.
 #   - Run `pm2 startup`'s printed sudo command for you. That needs an
 #     interactive sudo prompt this script can't answer non-interactively
-#    , it prints the exact command for you to run yourself at the end.
+#    Instead it prints the exact command for you to run at the end.
 #   - Open any port beyond SSH. Dashboards/API stay bound to localhost;
 #     access them via an SSH tunnel (instructions printed at the end),
 #     not by exposing them to the public internet. Do that later,
@@ -56,10 +56,9 @@ sudo apt-get install -y git curl build-essential ufw postgresql-client
 echo "=== [2/9] Python + venv ==="
 # Use whatever python3 the distro ships rather than pinning a minor
 # version. The previous `apt-get install python3.11` could not succeed on
-# any Ubuntu this script claims to support, 22.04 ships 3.10, 24.04 ships
-# 3.12 and 26.04 ships 3.14, and none of them carry a python3.11 package.
-# Getting 3.11 specifically would have meant the deadsnakes PPA, which the
-# script never added.
+# any Ubuntu this script supports: 22.04 ships 3.10, 24.04 ships 3.12 and
+# 26.04 ships 3.14, and none carry a python3.11 package. Pinning 3.11 would
+# mean adding the deadsnakes PPA, which is not worth the dependency.
 #
 # The floor is 3.11: the codebase uses `X | Y` type syntax at runtime in
 # places, and eval_type_backport only covers the API's Pydantic models.
@@ -114,7 +113,7 @@ fi
 
 echo "=== [5/9] Postgres ==="
 echo "Where should the collectors' Postgres live?"
-echo "  local   , install and run it on this box (recommended: one VM owns"
+echo "  local     install and run it on this box (recommended: one VM owns"
 echo "             the data and the processes writing it, no egress, no"
 echo "             per-hour compute quota to exhaust)"
 echo "  external, a managed/remote Postgres you'll paste a URL for"
@@ -180,10 +179,9 @@ read -p "Press Enter once .env is filled in and saved to continue... " _
 
 echo "=== [7/9] Create the collectors' Postgres tables ==="
 # market_data / fundamental_trade_data / news_articles / news_sentiment.
-# Nothing else in this repo ever applies this file, it used to be run by
-# hand exactly once, on a database that was then treated as a given, which
-# is why a from-scratch deployment could never actually work. All of it is
-# CREATE TABLE IF NOT EXISTS, so this is safe against a populated database
+# This is the only place the schema is applied, so a from-scratch
+# deployment depends on it. All CREATE TABLE IF NOT EXISTS, so it is safe
+# against a populated database
 # (including one just seeded by scripts/migrate_database.sh).
 set -a
 . ./.env

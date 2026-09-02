@@ -40,7 +40,7 @@ module.exports = {
       max_restarts: 20,
     },
     {
-      // LLM classification of whatever news-stream has collected ,
+      // LLM classification of whatever news-stream has collected:
       // produces the news_classifications/news_classification_assets
       // rows the dashboard's /news/latest actually reads.
       name: "news-sentiment-stream",
@@ -52,11 +52,9 @@ module.exports = {
     },
     {
       // Rebuilds the DERIVED:xxxUSD inverse FX rows from tv-stream's raw
-      // USDxxx quotes (see generate_fx_inverses.py), was previously
-      // only ever run once by hand and never scheduled, so every
-      // currency using a DERIVED symbol (CAD, CHF, JPY, and now the
-      // rest of the commodity-currency universe) would have silently
-      // gone stale the same way the daily bars and news sync did.
+      // USDxxx quotes (see generate_fx_inverses.py). Every currency using
+      // a DERIVED symbol depends on this running, so it is scheduled
+      // rather than left to be invoked by hand.
       name: "fx-inverse-refresh",
       script: "scripts/refresh_fx_inverses.sh",
       interpreter: "bash",
@@ -100,8 +98,8 @@ module.exports = {
       cron_restart: "30 3 * * *",
     },
     {
-      // The pipeline's read-only API, the dashboard's only way to reach
-      // market_data/fundamental_trade_data/paper-trading state.
+      // The read-only API. The dashboard's only route to Postgres, and
+      // bound to localhost, so it is never exposed publicly.
       name: "pipeline-api",
       script: "scripts/run_pipeline_api.sh",
       interpreter: "bash",

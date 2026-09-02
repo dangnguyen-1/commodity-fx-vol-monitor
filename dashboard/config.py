@@ -6,7 +6,7 @@ Alert thresholds are expressed as annualized volatility percentages.
 import os
 
 # ---------------------------------------------------------------------------
-# Data source: "pipeline" | "bloomberg" | "yahoo" | "mock", env-overridable.
+# Data source: "pipeline" | "yahoo" | "mock", env-overridable.
 # "pipeline" (the default) tries the pipeline's live
 # TradingView feed first and falls back to Yahoo Finance per-instrument for
 # whatever the pipeline doesn't track (see data/market_data.py), this is

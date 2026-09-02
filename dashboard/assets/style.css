@@ -31,7 +31,7 @@
   --font-body:    'Public Sans', sans-serif;
 
   /* Dash's own native component theme tokens (Dropdown, Slider, DatePicker)
-    , retuned from their light-mode defaults to the board's dark surface. */
+    retuned from their light-mode defaults to the board's dark surface. */
   --Dash-Fill-Inverse-Strong:     #1a1d26;
   --Dash-Fill-Interactive-Strong: #F2A93B;
   --Dash-Fill-Interactive-Weak:   rgba(242, 169, 59, 0.14);

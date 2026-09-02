@@ -194,7 +194,7 @@ def build_zoom(
 ) -> html.Div:
     """Centered on one country: who sends to it (left, blue) and who it
     sends to (right, red). Flanking bars are informational, not clickable
-   , only the original top-exporter/top-importer rankings drill down, to
+   Only the original top-exporter and top-importer rankings drill down, to
     keep the click surface bounded to countries this app already has
     totals for."""
     src_rows = sources.head(top_n) if sources is not None else pd.DataFrame()

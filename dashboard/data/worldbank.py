@@ -113,9 +113,9 @@ def commodity_exposure_pct(df: pd.DataFrame) -> pd.DataFrame:
     Derive commodity-group exposure metrics from World Bank indicators.
 
     Returns columns:
-      energy_net_pct   , (fuel_exports - fuel_imports) as % of GDP
-      agri_net_pct     , (agri_exports - agri_imports) as % of GDP
-      metals_net_pct   , (metal_exports - metal_imports) as % of GDP
+      energy_net_pct:   (fuel_exports - fuel_imports) as % of GDP
+      agri_net_pct:     (agri_exports - agri_imports) as % of GDP
+      metals_net_pct:   (metal_exports - metal_imports) as % of GDP
     """
     out = pd.DataFrame(index=df.index)
 

@@ -1,12 +1,8 @@
-"""Prints what OpenAI actually cost over a window, for the weekly reminder.
+"""Summarises OpenAI usage over a window, for the weekly billing reminder.
 
-Kept as its own module rather than inlined into billing_reminder.sh, because
-a Python heredoc nested inside a shell heredoc is a reliable way to produce
-a script that parses today and breaks the moment either side is edited.
-
-The reminder used to only link to the billing page. That is how 1,023 calls
-came to be logged at $0.00 without anyone noticing the per-million prices
-were never set.
+Its own module rather than inlined into billing_reminder.sh, because a
+Python heredoc nested inside a shell heredoc breaks the moment either side
+is edited.
 
 Usage:
     .venv/bin/python3 -m monitoring.openai_usage_report --days 7

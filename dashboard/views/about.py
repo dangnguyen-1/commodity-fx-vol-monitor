@@ -129,14 +129,9 @@ def _section(title: str, body) -> dbc.Card:
 def _definition_rows(rows: list[tuple[str, str]]) -> html.Div:
     """Three levels, each its own colour so the page has visible structure.
 
-    The section heading is blue display caps; the names and their
-    descriptions are both off-white, separated by weight rather than by
-    colour. The heading still reads as the level above despite the quieter
-    colour, because the display face, uppercase and tracking carry the rank
-    rather than brightness alone.
-
-    Heading and names shared the off-white at first, which made each
-    section read as one flat block.
+    Blue display caps for the heading, off-white for the names and their
+    descriptions. The heading reads as the level above through the display
+    face, uppercase and tracking rather than through brightness.
     """
     return html.Div([
         dbc.Row(

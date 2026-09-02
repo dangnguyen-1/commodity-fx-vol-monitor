@@ -1,39 +1,15 @@
-"""
-Commodity-FX Volatility Monitor
-------------------------------------
-Run: python3 app.py
-Then open http://localhost:8050 in your browser.
+"""Commodity-FX Volatility Monitor: Dash application and callbacks.
 
-Set DATA_SOURCE in config.py:
-  "pipeline"  the project's own TradingView and Comtrade feeds (default)
-  "yahoo"     free Yahoo Finance data, no API key needed
-  "mock"      synthetic random-walk data for offline testing
+Run:  python3 app.py     then open http://localhost:8050
 
--------------------------------------------------------------------------
-DIRECTION CONTRACT (impeccable seed a29f278f, direction:
-vernacular-ephemera-boarding-pass-and-gate-board)
+DATA_SOURCE in config.py selects where prices come from:
+  "pipeline"  the project's own TradingView feed via api/ (default)
+  "yahoo"     Yahoo Finance, no key required
+  "mock"      synthetic series, no database or network needed
 
-THESIS: Track commodities the way an airport tracks flights, a board
-that visibly reranks and holds attention on what changed, refusing the
-literal Bloomberg-terminal skin the category always ships.
-
-OWN-WORLD: Near-black board (#12141a) + off-white flap text (#EAE7DC).
-Big Shoulders Display condensed caps for signage, Martian Mono for every
-figure, one amber accent (#F2A93B) reserved for board chrome/alerts.
-Gains/losses keep green/red; informational data keeps blue.
-
-STORY: A hiring/technical viewer watches prices flip into place, sees an
-alert tile ignite when a threshold breaks, and reads country/trade/risk
-context as gate-board-style panels, leaving convinced this is a real
-cross-domain instrument, not a chart-library demo.
-
-FIRST VIEWPORT: Board header (title, live dot, mono "updated" readout,
-refresh), then one flip tile per commodity (name/price/return/HV, with
-breached tiles lit amber), then the gate-strip tabs and tab content.
-
-FINISH: unreviewed and undocumented is unfinished; this build ends with
-the finish review, the verdict, and DESIGN.md.
--------------------------------------------------------------------------
+The visual language is documented in DESIGN.md. The short version: one
+amber accent reserved for chrome and alerts, semantic green and red for
+direction, blue for informational data, and mono for every figure.
 """
 
 from __future__ import annotations
@@ -180,18 +156,10 @@ def icon_triangle(direction: str, color: str) -> html.Span:
 def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
     """Board tiles, in the roster order defined by config.COMMODITIES.
 
-    These used to rerank on every refresh, breached thresholds first and
-    then descending HV30, so the board showed what had changed. That is a
-    reasonable idea for a monitoring board and the wrong one here: it
-    reshuffled the tiles on every update, so gold might sit beside cotton
-    on one refresh and beside wheat on the next, and a reader comparing
-    two related contracts could never rely on where either one was.
-
-    The roster is now ordered so neighbours share a driver (gold beside
-    silver, the two PGMs together, crude before the thermal fuels), and
-    that only helps if the order actually holds. A breached threshold is
-    still obvious from the tile's own styling, which is where that signal
-    belongs, rather than from its position moving.
+    Fixed order, not reranked by volatility. The roster is arranged so
+    neighbours share a driver (gold beside silver, the two PGMs together),
+    which only helps if a tile stays where the reader last saw it. A
+    breached threshold shows in the tile's own styling instead.
     """
     last_price = prices.iloc[-1]
     ret_1d = (prices.iloc[-1] / prices.iloc[-2] - 1) * 100 if len(prices) >= 2 else pd.Series()
@@ -246,23 +214,16 @@ def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
 # Layout
 # ---------------------------------------------------------------------------
 
-# The mode switch and its Paper Trading tabs were removed with the
-# paper-trading engine (see docs/PAPER_TRADING_HISTORY.md). One mode means
-# the tab list is static, so it is built once in the layout rather than by a
-# callback watching a switch that no longer exists.
-# Ordered as an argument rather than by when each tab was written. It runs
-# observation, then the relationship, then the mechanism behind it, then
-# current context, and finishes on the synthesis:
+# Static list, built once in the layout rather than by a callback.
 #
-#   Volatility, Returns, Alerts   what the commodities are doing
-#   Currencies, Correlation       how the currencies move with them
-#   Trade Flows, Country Exposure why that link exists, and on whom
-#   Risk & News                   what is happening right now
-#   Opportunities                 where all three signals agree
+# Ordered as an argument: observation, then the relationship, then the
+# mechanism behind it, then current context, then the synthesis.
 #
-# Opportunities previously sat fourth, ahead of the trade data that explains
-# it and the news sentiment it consumes, so the conclusion was presented
-# before any of its inputs.
+#   Volatility, Returns, Alerts    what the commodities are doing
+#   Currencies, Correlation        how the currencies move with them
+#   Trade Flows, Country Exposure  why that link exists, and on whom
+#   Risk & News                    what is happening right now
+#   Opportunities                  where all three signals agree
 TABS = [
     ("Volatility", "vol"),
     ("Returns & Trends", "returns"),
@@ -303,11 +264,8 @@ app.layout = dbc.Container(
                     ],
                     width="auto",
                 ),
-                # Timestamp and button travel together on the right. The
-                # timestamp used to sit immediately after the title, which
-                # read as a subtitle and now collides with the byline that
-                # genuinely is one. Metadata before the action, so it reads
-                # "updated at X" and then the control that changes it.
+                # Timestamp and button travel together on the right,
+                # metadata before the control that changes it.
                 dbc.Col(
                     html.Div(
                         [
@@ -373,24 +331,19 @@ app.layout = dbc.Container(
     Input("auto-refresh", "n_intervals"),
 )
 def load_data(_clicks, _interval):
-    if DATA_SOURCE == "bloomberg":
-        from data.bloomberg import fetch_prices as _fetch
-        prices_raw = _fetch(BBG_TICKERS, lookback_days=365)
-        prices_raw.rename(columns=BBG_TO_NAME, inplace=True)
-    elif DATA_SOURCE == "yahoo":
+    if DATA_SOURCE == "yahoo":
         from data.yahoo import fetch_prices as _fetch
         prices_raw = _fetch(YAHOO_TICKERS, lookback_days=365)
         prices_raw.rename(columns=YAHOO_TO_NAME, inplace=True)
     elif DATA_SOURCE == "pipeline":
-        # TradingView (via the pipeline's API) first, Yahoo
-        # Finance fills in only whatever the pipeline doesn't track ,
-        # see data/market_data.py.
+        # TradingView via the pipeline API, with Yahoo Finance filling in
+        # only what the pipeline does not track. See data/market_data.py.
         from data.market_data import fetch_prices as _fetch
         names_to_tv = {name: spec.get("tradingview") for name, spec in COMMODITIES.items()}
         names_to_yahoo = {name: spec["yahoo"] for name, spec in COMMODITIES.items()}
         prices_raw = _fetch(names_to_tv, names_to_yahoo, lookback_days=365)
     else:  # "mock"
-        from data.bloomberg import fetch_mock_prices
+        from data.mock import fetch_mock_prices
         prices_raw = fetch_mock_prices(BBG_TICKERS, lookback_days=365)
         prices_raw.rename(columns=BBG_TO_NAME, inplace=True)
 
@@ -638,10 +591,8 @@ def _render_returns(prices: pd.DataFrame, hv_dict: dict) -> html.Div:
             )
         )
 
-    # Each header carries its column's alignment. They used to be bare
-    # html.Th, which Bootstrap left-aligns, while every value cell below is
-    # right-aligned (numbers) or centred (trend). The result was a header row
-    # that did not sit above the figures it named.
+    # Each header carries its column's alignment. Bootstrap left-aligns a
+    # bare html.Th, which would not sit above right-aligned figures.
     COLUMNS = [
         ("Commodity", "left"),
         ("1D %", "right"),
@@ -692,7 +643,7 @@ def _corr_heatmap(z, x, y, height=520, colorscale=None, zmid=0, zmin=-1, zmax=1)
     return fig
 
 
-# Metric definitions for the commodity x currency relationship heatmap ,
+# Metric definitions for the commodity x currency relationship heatmap:
 # each a real, independently-meaningful statistic derived from the same
 # 52-week aligned return series (see data.fx.commodity_fx_relationship),
 # not three views of the same number.
@@ -1016,8 +967,7 @@ def _render_alerts(hv_dict: dict) -> html.Div:
             )
         )
 
-    # Same fix as the returns table: bare html.Th left-aligns, while the
-    # numeric cells below are right-aligned and Status is centred.
+    # Alignment per column, matching the cells beneath.
     header = html.Thead(
         html.Tr(
             [
@@ -1246,7 +1196,7 @@ def update_opportunity_board(_n, prices_json, fx_json, fx_corr_json, sentiment_j
     """Renders as soon as the fast inputs (prices, FX prices, correlation)
     are ready. Sentiment is the slowest input (one classified-news lookup per commodity)
     and is never a hard blocker: a commodity with no sentiment score yet
-    reads as neutral (0.0) rather than holding the whole board hostage ,
+    reads as neutral (0.0) rather than holding the whole board hostage,
     the poll keeps ticking and the board quietly fills in sentiment once
     it lands, without the fast 90% of the data waiting on the slow 10%."""
     if not prices_json:

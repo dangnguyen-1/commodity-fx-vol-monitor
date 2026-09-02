@@ -107,9 +107,8 @@ def fetch_prices(
 ) -> pd.DataFrame:
     """
     Returns a DataFrame indexed by date with one column per name in
-    names_to_yahoo (every instrument the dashboard tracks), same shape
-    data/yahoo.py's fetch_prices alone used to return, so nothing
-    downstream needs to know which source a given column came from.
+    names_to_yahoo (every instrument the dashboard tracks). Callers never
+    need to know which source a given column came from.
 
     For each name: try the pipeline's TradingView symbol first (skip
     entirely if names_to_tv has None, that instrument isn't in the

@@ -61,10 +61,9 @@ def clean_summary(
 
 
 def run_once() -> None:
-    # The daily budget is enforced here, not only in news_sentiment.main().
-    # This module never calls main(): it imports the pieces and runs its own
-    # loop, so a ceiling placed only there would have been inert in exactly
-    # the process that does all the spending.
+    # The daily budget is enforced here as well as in news_sentiment.main().
+    # This module never calls main(), it imports the pieces and runs its own
+    # loop, so this is the path that does the spending.
     remaining = None
     if MAX_CALLS_PER_DAY > 0:
         used = calls_used_today()
