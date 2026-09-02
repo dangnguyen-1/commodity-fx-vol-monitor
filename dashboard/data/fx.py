@@ -106,7 +106,50 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     # Argentina), just missing from this group. PRY (Paraguay) added as
     # a new currency: world's #3 exporter (~3.4M tonnes/year).
     "Soybeans":    ["BRA", "ARG", "CAN", "UKR", "PRY"],
+
+    # The groups below were derived from the trade data rather than asserted:
+    # net exports per country per commodity in fundamental_trade_data over
+    # 2020 onward, keeping the tracked currencies that lead on net.
+    #
+    # Net, not gross, is what decides membership. On gross exports the UK
+    # outranks South Africa in platinum and the US outranks everyone in
+    # palladium, which is London and New York clearing metal they did not
+    # mine. On net the picture inverts: ZAF +$13.5B against GBR +$4.4B in
+    # platinum, ZAF +$18.7B against USA +$1.9B in palladium.
+    "Platinum":    ["ZAF", "RUS"],
+    "Palladium":   ["ZAF", "RUS"],
+    # Australia is not merely first here, it is +$614B net against Brazil's
+    # +$220B, the most lopsided relationship anywhere in this table.
+    "Iron Ore":    ["AUS", "BRA", "ZAF", "CAN"],
+    "Aluminium":   ["CAN", "AUS", "RUS"],
+    # COL carries no Comtrade rows because Colombia is not one of the 30
+    # reporters the collector requests, so it is included on the economics
+    # (third largest coffee exporter globally) and contributes to the price
+    # correlation view only. It will gain trade backing if the reporter list
+    # is widened.
+    "Coffee":      ["BRA", "COL"],
+    "Sugar":       ["BRA", "MEX"],
+    "Cotton":      ["BRA", "AUS", "ARG"],
+    "Live Cattle": ["CAN", "AUS", "BRA", "MEX"],
 }
+
+# Cocoa and uranium were considered and deliberately left out, in both cases
+# because the trade data cannot support them rather than because the economic
+# link is weak.
+#
+# Cocoa: the leading "exporters" in fundamental_trade_data are the
+# Netherlands and the United States, both deeply net negative (-$19.8B and
+# -$10.1B). Those are grinders and re-exporters. Ghana and Cote d'Ivoire, who
+# actually grow it, are not among the 30 reporters, so the series describes
+# processing rather than production and would attach GHS to a number that
+# says nothing about Ghana.
+#
+# Uranium: Kazakhstan produces roughly 40% of world supply and is likewise
+# not a reporter. What remains reads as enriched fuel moving between France,
+# the Netherlands and Germany rather than ore leaving the ground.
+#
+# Both become usable if the reporter list in
+# data_collector/fundamental_data/config/countries.py is widened.
 
 # Natural Gas is deliberately left at ["RUS", "NOR", "AUS", "CAN"] despite
 # Qatar being a top-3 LNG exporter: the Qatari riyal is a hard USD peg, so

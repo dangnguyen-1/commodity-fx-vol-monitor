@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -78,10 +79,30 @@ class RequestJob:
     flow_code: str
 
     @property
+    def roster_fingerprint(self) -> str:
+        """Short digest of the reporters this job was actually fetched for.
+
+        This belongs in the checkpoint name because it is part of the
+        request. It used to be absent, and since COUNTRY_BATCH_SIZE puts
+        every reporter in a single batch, the batch index stayed at 01 no
+        matter who was in it. Adding a country therefore left all 936
+        checkpoint filenames unchanged, job_is_complete() found them and
+        returned True, and the new reporters were never requested. Nothing
+        raised and no log line appeared; the data simply never arrived.
+
+        With the roster in the name, changing it invalidates exactly the
+        jobs whose inputs changed, which is every job, and the next run
+        refetches them.
+        """
+        joined = ",".join(sorted(self.countries)).encode()
+        return hashlib.blake2s(joined, digest_size=3).hexdigest()
+
+    @property
     def checkpoint_path(self) -> Path:
         return CHECKPOINT_DIR / (
             f"{safe_name(self.commodity)}"
             f"__r{self.country_batch_index:02d}"
+            f"__c{self.roster_fingerprint}"
             f"__p{self.periods[0]}-{self.periods[-1]}"
             f"__h{self.hs_length}"
             f"__{self.flow_code}.csv"
