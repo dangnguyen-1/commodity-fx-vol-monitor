@@ -285,17 +285,14 @@ def mark_skipped(article_ids: list[int]) -> None:
         conn.close()
 
 
-# Per-million-token prices, from .env. Left at zero when unset, which makes
-# the recorded cost zero rather than a guess -- an invented price is worse
-# than no price, because it looks authoritative.
-PRICE_INPUT_PER_M = float(os.getenv("OPENAI_PRICE_INPUT_PER_1M", "0") or 0)
-PRICE_OUTPUT_PER_M = float(os.getenv("OPENAI_PRICE_OUTPUT_PER_1M", "0") or 0)
-
-
 def record_usage(response: Any) -> None:
     """Log one call's token usage.
 
-    Best effort by design: a failure to record spend must never stop the
+    Volume only. Spend is bounded by MAX_CALLS_PER_DAY and reported weekly
+    from the billing page, so pricing the calls here would add a number to
+    maintain without adding a decision it could change.
+
+    Best effort by design: a failure to record usage must never stop the
     classification that was already paid for.
     """
     try:
@@ -304,10 +301,6 @@ def record_usage(response: Any) -> None:
             return
         input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
-        cost = (
-            input_tokens / 1_000_000 * PRICE_INPUT_PER_M
-            + output_tokens / 1_000_000 * PRICE_OUTPUT_PER_M
-        )
         conn = psycopg2.connect(get_database_url())
         try:
             with conn:
@@ -315,11 +308,10 @@ def record_usage(response: Any) -> None:
                     cur.execute(
                         """
                         INSERT INTO openai_usage (
-                            model, input_tokens, output_tokens,
-                            estimated_cost_usd
-                        ) VALUES (%s, %s, %s, %s)
+                            model, input_tokens, output_tokens
+                        ) VALUES (%s, %s, %s)
                         """,
-                        (MODEL_NAME, input_tokens, output_tokens, cost),
+                        (MODEL_NAME, input_tokens, output_tokens),
                     )
         finally:
             conn.close()

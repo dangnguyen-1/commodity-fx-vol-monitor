@@ -50,7 +50,9 @@ DAILY_BAR_STALE_LIMIT_HOURS = 48
 TRADE_STALE_LIMIT_DAYS = 75
 
 # Articles arrive continuously, so a long silence means classification has
-# stopped, most often because OpenAI credit ran out. That fails silently.
+# stopped, most often because OpenAI credit ran out. That fails silently,
+# and this is what catches it: the symptom is visible even though the
+# balance is not.
 CLASSIFICATION_STALE_LIMIT_MINUTES = 180
 ARTICLE_STALE_LIMIT_MINUTES = 240
 
@@ -266,47 +268,6 @@ def check_news(cursor) -> list[Finding]:
     return findings
 
 
-def check_openai(cursor) -> list[Finding]:
-    """Low-credit warning, only when a starting balance is configured.
-
-    Nothing fires without OPENAI_CREDIT_USD, because a threshold measured
-    against an unknown budget would be theatre. Ordinary usage is reported
-    by the weekly billing reminder instead.
-    """
-    credit = float(os.environ.get("OPENAI_CREDIT_USD", "0") or 0)
-    if credit <= 0:
-        return []
-
-    cursor.execute(
-        """
-        SELECT COALESCE(SUM(estimated_cost_usd), 0),
-               COALESCE(SUM(input_tokens), 0),
-               COALESCE(SUM(output_tokens), 0)
-        FROM openai_usage
-        """
-    )
-    spent, input_tokens, output_tokens = cursor.fetchone()
-    spent = float(spent or 0)
-
-    alert_at = float(os.environ.get("OPENAI_ALERT_REMAINING_USD", "5") or 5)
-    remaining = credit - spent
-    if remaining > alert_at:
-        return []
-
-    return [
-        Finding(
-            key="openai_credit",
-            severity="critical",
-            message=(
-                f"OpenAI credit down to ${remaining:.2f} of ${credit:.2f} "
-                f"(spent ${spent:.2f} on {int(input_tokens):,} in / "
-                f"{int(output_tokens):,} out tokens). Top up before "
-                "classification stops."
-            ),
-        )
-    ]
-
-
 def check_disk(path: Path) -> list[Finding]:
     usage = shutil.disk_usage(path)
     used_percent = usage.used / usage.total * 100.0
@@ -396,7 +357,6 @@ def collect_findings(database_url: str) -> list[Finding]:
                 check_market_data(cursor, now)
                 + check_trade_data(cursor)
                 + check_news(cursor)
-                + check_openai(cursor)
             )
     except Exception as error:  # noqa: BLE001
         return [

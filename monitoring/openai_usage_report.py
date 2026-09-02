@@ -42,14 +42,13 @@ def main() -> None:
                 """
                 SELECT COUNT(*),
                        COALESCE(SUM(input_tokens), 0),
-                       COALESCE(SUM(output_tokens), 0),
-                       COALESCE(SUM(estimated_cost_usd), 0)
+                       COALESCE(SUM(output_tokens), 0)
                 FROM openai_usage
                 WHERE created_at_utc > now() - (%s || ' days')::interval
                 """,
                 (str(args.days),),
             )
-            calls, tokens_in, tokens_out, cost = cursor.fetchone()
+            calls, tokens_in, tokens_out = cursor.fetchone()
 
             cursor.execute(
                 """
@@ -71,17 +70,11 @@ def main() -> None:
     finally:
         connection.close()
 
-    cost = float(cost or 0)
     print(f"  last {args.days} days:   {int(calls):,} calls on {models}")
     print(f"  tokens:        {int(tokens_in):,} in / {int(tokens_out):,} out")
 
-    # Cost is only printed when prices are configured. Otherwise the volume
-    # figures above are the useful part and a "$0.00" line would read as
-    # free rather than as unmeasured.
-    if cost > 0:
-        per_30 = cost / max(args.days, 1) * 30
-        print(f"  cost:          ${cost:.2f}  ->  ${per_30:.2f} per 30 days")
-
+    # Volume only. The dollar figure lives on the OpenAI billing page, which
+    # is authoritative; a second one computed here could only ever disagree.
     cap = int(os.environ.get("OPENAI_MAX_CALLS_PER_DAY", "1000") or 0)
     if cap:
         print(f"  budget today:  {today:,} of {cap:,} calls")
