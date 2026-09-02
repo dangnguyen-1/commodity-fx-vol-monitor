@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from data_collector.news_data.collectors.news_sentiment import (
     MAX_CALLS_PER_DAY,
     append_failure_log,
+    calls_allowed_now,
     calls_used_today,
     get_openai_client,
     get_unscored_articles,
@@ -63,7 +64,8 @@ def clean_summary(
 def run_once() -> None:
     # The daily budget is enforced here as well as in news_sentiment.main().
     # This module never calls main(), it imports the pieces and runs its own
-    # loop, so this is the path that does the spending.
+    # loop, so this is the path that does the spending, and the only one
+    # that is paced. See calls_allowed_now().
     remaining = None
     if MAX_CALLS_PER_DAY > 0:
         used = calls_used_today()
@@ -73,7 +75,16 @@ def run_once() -> None:
                 "Waiting until tomorrow (UTC)."
             )
             return
-        remaining = MAX_CALLS_PER_DAY - used
+
+        remaining = calls_allowed_now(used)
+        if remaining <= 0:
+            # Budget left, but not yet released. Nothing to do but wait for
+            # the schedule, which is a normal state for most polls.
+            print(
+                f"Paced: {used}/{MAX_CALLS_PER_DAY} calls used, running "
+                "ahead of the even daily spread. Waiting for the schedule."
+            )
+            return
 
     articles = get_unscored_articles()
 
@@ -84,7 +95,7 @@ def run_once() -> None:
     if remaining is not None and len(articles) > remaining:
         articles = articles[:remaining]
 
-    budget = "" if remaining is None else f" ({remaining} left in today's budget)"
+    budget = "" if remaining is None else f" ({remaining} released so far)"
     print(f"Found {len(articles)} unscored articles{budget}")
 
     client = get_openai_client()

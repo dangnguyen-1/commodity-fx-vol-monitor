@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -62,13 +63,18 @@ MAX_FAILED_ATTEMPTS_PER_ARTICLE = int(
 )
 SLEEP_SECONDS = float(os.getenv("OPENAI_SLEEP_SECONDS", "1.0"))
 
-# Hard ceiling on API calls per UTC day. A budget, not a throttle: once it
-# is reached the classifier stops until tomorrow.
+# Hard ceiling on API calls per UTC day. Once it is reached the classifier
+# stops until tomorrow.
 #
 # MAX_ARTICLES_PER_RUN caps a single run, not a day, so it cannot bound
 # spend on its own. 1,000 sits just above the steady-state rate, which is
 # roughly $15 a month at mini pricing.
 MAX_CALLS_PER_DAY = int(os.getenv("OPENAI_MAX_CALLS_PER_DAY", "1000"))
+
+# How far ahead of an even spread of MAX_CALLS_PER_DAY the stream may run.
+# See calls_allowed_now(). 1440 releases the whole day at once, which is the
+# unpaced behaviour this replaced.
+PACING_BURST_MINUTES = int(os.getenv("OPENAI_PACING_BURST_MINUTES", "60"))
 
 # Reclassify articles a previous model already handled. Off by default: a
 # model change should not silently re-spend the whole budget on history.
@@ -529,9 +535,45 @@ def calls_used_today() -> int:
         conn.close()
 
 
+def calls_allowed_now(used: int) -> int:
+    """Calls the pacing schedule permits right now, given today's usage.
+
+    MAX_CALLS_PER_DAY on its own is a budget, not a throttle. The queue is
+    drained newest-first as fast as the API answers, so a busy day spends
+    the entire allowance within a couple of hours of the UTC rollover and
+    then classifies nothing for the twenty-odd hours that follow. Since
+    /news/latest only serves articles that have been classified, the tab
+    stops updating for most of the day and reads as a nightly digest rather
+    than the live view it is meant to be.
+
+    Releasing the same budget evenly across the day fixes that without
+    spending a cent more. PACING_BURST_MINUTES is the headroom: the stream
+    may run that far ahead of an even spread, so a sudden run of news is
+    still worked through promptly instead of being metered out one call at
+    a time. At 1440 the whole day is available immediately, which restores
+    the old unpaced behaviour.
+
+    The result is still clamped to MAX_CALLS_PER_DAY, so this only ever
+    changes when the budget is spent, never how much of it there is.
+    """
+    now = datetime.now(timezone.utc)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elapsed_minutes = (now - midnight).total_seconds() / 60.0
+
+    released = MAX_CALLS_PER_DAY * (
+        (elapsed_minutes + PACING_BURST_MINUTES) / 1440.0
+    )
+    return max(0, min(MAX_CALLS_PER_DAY, int(released)) - used)
+
+
 def main():
     ensure_status_table()
 
+    # Deliberately unpaced, unlike the stream's run_once(). Pacing exists to
+    # stop a process that polls all day from spending the budget in its first
+    # hour; this path is invoked by hand, usually to work through a backlog,
+    # and metering that to a handful of calls would defeat the point. The
+    # daily ceiling still applies, so spend stays bounded either way.
     if MAX_CALLS_PER_DAY > 0:
         used = calls_used_today()
         if used >= MAX_CALLS_PER_DAY:

@@ -302,12 +302,13 @@ def unclassified_backlog(cursor, max_attempts: int) -> int | None:
 def classification_finding(cursor, stale_minutes: float) -> Finding | None:
     """Why classification stopped, which decides how loud this should be.
 
-    Spending the daily budget and losing OpenAI credit produce exactly the
-    same silence in news_sentiment, and only one of them is a problem. They
-    are told apart by how the day's calls ended: a spent budget leaves a
+    An empty queue, a spent daily budget and lost OpenAI credit all produce
+    exactly the same silence in news_sentiment, and only the last is a
+    problem. They are told apart by what the classifier has to show for the
+    day: nothing queued means there was no work; a spent budget leaves a
     full day of usage recorded and the classifier waiting for the UTC
-    rollover, while a credit or key failure records almost no usage and a
-    run of 'failed' rows instead.
+    rollover; a credit or key failure records almost no usage and a run of
+    'failed' rows instead.
     """
     budget = int(
         os.getenv("OPENAI_MAX_CALLS_PER_DAY", str(DEFAULT_MAX_CALLS_PER_DAY))
@@ -338,28 +339,49 @@ def classification_finding(cursor, stale_minutes: float) -> Finding | None:
     )
 
     # Failures inside the window mean calls are still being attempted, which
-    # rules the budget out on its own: the gate returns before spending
-    # anything, so a closed gate cannot produce them.
-    if failures or not budget_spent:
-        if failures:
-            detail = (
-                f"{failures} failed in that window, so this is not the "
-                "daily budget"
-            )
-        elif calls_today is not None:
+    # rules both benign causes out on its own: neither an empty queue nor a
+    # closed budget gate reaches the API at all.
+    if failures:
+        return Finding(
+            key="classification_stale",
+            severity="critical",
+            message=(
+                f"No news classified for {stale_minutes:.0f} minutes and "
+                f"{failures} failed in that window, so this is neither the "
+                "queue nor the budget. Check OpenAI credit first, then the "
+                "news-sentiment-stream process."
+            ),
+        )
+
+    # An empty queue means there was nothing to classify, so the silence is
+    # the news feed being quiet rather than the classifier being broken.
+    # Since pacing spread the budget across the day this is the ordinary way
+    # for classification to fall silent, rather than the old early burst.
+    # A dead article feed is caught separately by ARTICLE_STALE_LIMIT.
+    if backlog == 0:
+        print(
+            f"[watchdog] classification quiet {stale_minutes:.0f}m: nothing "
+            f"queued, {calls_today} of {budget} calls used today. Expected, "
+            "not reported."
+        )
+        return None
+
+    if not budget_spent:
+        if calls_today is not None:
             detail = (
                 f"only {calls_today} of {budget} daily calls used, so this "
                 "is not the daily budget"
             )
         else:
             detail = "budget state unreadable, so reporting regardless"
+        queued = "an unknown number" if backlog is None else str(backlog)
         return Finding(
             key="classification_stale",
             severity="critical",
             message=(
-                f"No news classified for {stale_minutes:.0f} minutes "
-                f"({detail}). Check OpenAI credit first, then the "
-                "news-sentiment-stream process."
+                f"No news classified for {stale_minutes:.0f} minutes with "
+                f"{queued} queued ({detail}). Check OpenAI credit first, "
+                "then the news-sentiment-stream process."
             ),
         )
 
