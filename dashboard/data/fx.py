@@ -1,9 +1,8 @@
 """
 FX correlation analysis — how currency pairs move with commodity prices.
-Prices come from the paper-trading pipeline's live TradingView feed where
-it's tracked, Yahoo Finance as a fallback everywhere else (see
-data/market_data.py) — TradingView is the priority source, not just an
-equal alternative.
+Prices come from the pipeline's live TradingView feed where it's tracked,
+Yahoo Finance as a fallback everywhere else (see data/market_data.py).
+TradingView is the priority source, not just an equal alternative.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ logger = logging.getLogger(__name__)
 # "tradingview" is the pipeline's derived/direct symbol already in the same
 # USD-per-1-unit-of-currency convention as the Yahoo ticker (see
 # data_collector/market_data/collectors/generate_fx_inverses.py) — None
-# where his TradingView collector doesn't track that currency at all, in
+# where the TradingView collector doesn't track that currency at all, in
 # which case this pair is Yahoo-only.
 CURRENCY_PAIRS: dict[str, dict] = {
     # Energy-linked
@@ -49,8 +48,19 @@ CURRENCY_PAIRS: dict[str, dict] = {
     "KAZ": {"ticker": "KZTUSD=X", "tradingview": "DERIVED:KZTUSD",  "name": "Kazakhstani Tenge",  "primary": "Agriculture"},
     # World's #3 soybean exporter (~3.4M tonnes/year).
     "PRY": {"ticker": "PYGUSD=X", "tradingview": "DERIVED:PYGUSD",  "name": "Paraguayan Guarani", "primary": "Agriculture"},
-    # Safe-haven / reserve
-    "CHE": {"ticker": "CHFUSD=X", "tradingview": "DERIVED:CHFUSD",  "name": "Swiss Franc",        "primary": "Metals"},
+    # Importers and clearing centres. Not commodity exporters, and here on
+    # purpose: every other currency above is exporter-side, so without these
+    # the terms-of-trade sign can only ever be tested in one direction. An
+    # importer's currency should move the opposite way to the same commodity.
+    #
+    # GBR replaced CHE (Swiss Franc) here. Switzerland refines most of the
+    # world's gold, which is why it was tracked, but it reports none of it:
+    # all 5,226 of its Comtrade rows came back NULL, because Swiss customs
+    # excludes precious metals from the headline statistics. The UK is the
+    # other great gold clearing centre, at $766.9B of gross gold exports, and
+    # unlike Switzerland it actually reports. It also carries the energy
+    # import exposure the book was missing.
+    "GBR": {"ticker": "GBPUSD=X", "tradingview": "FX:GBPUSD",       "name": "British Pound",      "primary": "Energy"},
     "JPN": {"ticker": "JPYUSD=X", "tradingview": "DERIVED:JPYUSD",  "name": "Japanese Yen",       "primary": "Energy"},
 }
 
@@ -80,8 +90,11 @@ CURRENCY_PAIRS: dict[str, dict] = {
 #     the Middle East).
 COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     "WTI Crude":   ["CAN", "MEX", "COL", "JPN"],
-    "Brent Crude": ["CAN", "NOR", "RUS", "MEX", "COL"],
-    "Natural Gas": ["RUS", "NOR", "AUS", "CAN"],
+    # GBR is net -$117.6B in crude and the field this contract is named
+    # after is British. It sits here as an importer, so its expected
+    # sign is opposite to the exporters beside it.
+    "Brent Crude": ["CAN", "NOR", "RUS", "MEX", "COL", "GBR"],
+    "Natural Gas": ["RUS", "NOR", "AUS", "CAN", "GBR"],
     # Australia nets +$389B in coal over 2020-2025, more than double
     # Indonesia and its second largest export after iron ore. Indonesia
     # leads on volume among non-tracked currencies but the rupiah is not in
@@ -91,7 +104,7 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     "Coal":        ["AUS", "ZAF", "CAN", "RUS", "COL"],
     # RUS added: world's #2 gold producer. GHA added: Africa's #1 and
     # world's #6 gold producer (new currency, see CURRENCY_PAIRS).
-    "Gold":        ["AUS", "ZAF", "CAN", "CHE", "RUS", "GHA"],
+    "Gold":        ["AUS", "ZAF", "CAN", "GBR", "RUS", "GHA"],
     # MEX added: world's #1 silver producer by a wide margin (~1/5 of
     # global supply) — was only tracked here for oil before.
     "Silver":      ["AUS", "ZAF", "CHL", "PER", "MEX"],

@@ -50,7 +50,10 @@ ISO3_TO_M49 = {
     "UKR": "804",   # wheat, corn
     "KAZ": "398",   # uranium, wheat
     "PRY": "600",   # soybeans
-    "CHE": "756",   # gold refining, not production
+    # CHE was requested here and returned 5,226 rows, every one NULL.
+    # Switzerland refines most of the world's gold and reports none of
+    # it, because its customs statistics exclude precious metals. It
+    # was dropped rather than left producing empty rows.
 }
 
 COUNTRIES = list(ISO3_TO_M49.keys())
