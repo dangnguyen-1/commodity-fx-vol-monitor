@@ -76,6 +76,8 @@ writing.
 - `dashboard/DESIGN.md` documents the visual system: one amber accent
   reserved for chrome and alerts, semantic green and red for direction,
   blue for informational data, mono for every figure.
-- News classification is capped at 1,000 API calls per UTC day.
+- News classification is capped at 1,000 API calls per UTC day, released
+  evenly across the day rather than all at once, so the news tab stays
+  current through the session instead of updating in one overnight batch.
 - Futures prices arrive on a 10 to 11 minute delay under the current data
   entitlement. Spot FX is real time.
