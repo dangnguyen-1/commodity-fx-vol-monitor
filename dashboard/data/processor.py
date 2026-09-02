@@ -74,6 +74,24 @@ def current_vol_summary(hv_dict: dict[int, pd.DataFrame]) -> pd.DataFrame:
     return pd.concat(frames.values(), axis=1)
 
 
+def is_breaching(current_vol, threshold: float) -> bool:
+    """Whether a commodity counts as breaching its volatility threshold.
+
+    The single definition used by every surface that shows alert state:
+    the banner, the board tiles, the Alerts table and its count. Each of
+    those used to test the raw figure while displaying it rounded to one
+    decimal, so Platinum at 35.04% against a 35.0% threshold lit up
+    everywhere while every number on screen read 35.0% against 35.0%.
+    Fixing only check_alerts left the banner disagreeing with the tiles.
+
+    The test runs on the displayed value, so what a reader is shown always
+    justifies what they are told.
+    """
+    if pd.isna(current_vol):
+        return False
+    return round(float(current_vol), 1) > threshold
+
+
 def check_alerts(
     hv_dict: dict[int, pd.DataFrame],
     thresholds: dict[str, float],
@@ -97,7 +115,7 @@ def check_alerts(
         if name not in current or pd.isna(current[name]):
             continue
         shown = round(current[name], 1)
-        if shown > threshold:
+        if is_breaching(current[name], threshold):
             alerts.append(
                 {
                     "name": name,

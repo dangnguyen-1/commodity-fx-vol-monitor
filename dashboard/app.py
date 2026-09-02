@@ -74,6 +74,7 @@ from config import (
 )
 from data.processor import (
     check_alerts,
+    is_breaching,
     correlation_matrix,
     current_vol_summary,
     historical_volatility,
@@ -170,7 +171,7 @@ def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
         r1d = ret_1d.get(name, np.nan)
         hv = hv30.get(name, np.nan)
         threshold = ALERT_THRESHOLDS.get(name, 999)
-        alert = not np.isnan(hv) and hv > threshold
+        alert = is_breaching(hv, threshold)
 
         tile_class = "flip-tile flip-tile--alert" if alert else "flip-tile"
         # Keying on the live price re-mounts the tile (rather than patching
@@ -927,7 +928,7 @@ def _render_alerts(hv_dict: dict) -> html.Div:
         hv30 = hv_summary.at[name, "HV30"] if "HV30" in hv_summary.columns else np.nan
         hv60 = hv_summary.at[name, "HV60"] if "HV60" in hv_summary.columns else np.nan
         hv90 = hv_summary.at[name, "HV90"] if "HV90" in hv_summary.columns else np.nan
-        triggered = not np.isnan(hv30) and hv30 > threshold
+        triggered = is_breaching(hv30, threshold)
         status = (
             dbc.Badge("ALERT", color="warning", className="me-1")
             if triggered
@@ -988,7 +989,10 @@ def _render_alerts(hv_dict: dict) -> html.Div:
 
     triggered_count = sum(
         1 for name in NAMES
-        if (hv_summary.at[name, "HV30"] if "HV30" in hv_summary.columns else np.nan) > thresholds[name]
+        if is_breaching(
+            hv_summary.at[name, "HV30"] if "HV30" in hv_summary.columns else np.nan,
+            thresholds[name],
+        )
     )
     summary_badge = (
         dbc.Alert(
