@@ -5,7 +5,9 @@ import time
 from bs4 import BeautifulSoup
 
 from data_collector.news_data.collectors.news_sentiment import (
+    MAX_CALLS_PER_DAY,
     append_failure_log,
+    calls_used_today,
     get_openai_client,
     get_unscored_articles,
     normalize_impacts,
@@ -59,13 +61,32 @@ def clean_summary(
 
 
 def run_once() -> None:
+    # The daily budget is enforced here, not only in news_sentiment.main().
+    # This module never calls main(): it imports the pieces and runs its own
+    # loop, so a ceiling placed only there would have been inert in exactly
+    # the process that does all the spending.
+    remaining = None
+    if MAX_CALLS_PER_DAY > 0:
+        used = calls_used_today()
+        if used >= MAX_CALLS_PER_DAY:
+            print(
+                f"Daily budget reached: {used}/{MAX_CALLS_PER_DAY} calls. "
+                "Waiting until tomorrow (UTC)."
+            )
+            return
+        remaining = MAX_CALLS_PER_DAY - used
+
     articles = get_unscored_articles()
 
     if not articles:
         print("No unscored articles found")
         return
 
-    print(f"Found {len(articles)} unscored articles")
+    if remaining is not None and len(articles) > remaining:
+        articles = articles[:remaining]
+
+    budget = "" if remaining is None else f" ({remaining} left in today's budget)"
+    print(f"Found {len(articles)} unscored articles{budget}")
 
     client = get_openai_client()
 
