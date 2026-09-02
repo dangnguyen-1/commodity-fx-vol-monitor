@@ -89,10 +89,47 @@ def _cached_news_latest(asset: str, asset_type: str, limit: int) -> list[dict]:
         return []
 
 
+# Google News appends " - <Publisher>" to every headline it syndicates, so
+# 1,401 of the stored titles end in " - Reuters". Stripping the last " - X"
+# blindly would also damage real headlines: the same scan found endings like
+# "- Why does it matter?" and "- report". So only known publishers are
+# removed, matched case-insensitively.
+_PUBLISHER_SUFFIXES = (
+    "Reuters", "reuters.com",
+    "Bloomberg", "Bloomberg.com",
+    "Investing.com", "MarketWatch", "WSJ",
+)
+
+# The stored source is the RSS_FEEDS key, which is lower case. These are
+# what a reader should see.
+SOURCE_DISPLAY_NAMES = {
+    "reuters": "Reuters",
+    "investing": "Investing",
+    "bloomberg": "Bloomberg",
+    "marketwatch": "MarketWatch",
+}
+
+
+def strip_publisher_suffix(headline: str) -> str:
+    """Remove a trailing publisher attribution, leaving the headline."""
+    for separator in (" - ", " \u2013 ", " \u2014 "):
+        for publisher in _PUBLISHER_SUFFIXES:
+            suffix = f"{separator}{publisher}"
+            if headline.lower().endswith(suffix.lower()):
+                return headline[: -len(suffix)].strip()
+    return headline
+
+
+def display_source(source: str) -> str:
+    """Publisher name as shown to a reader, from the stored feed key."""
+    key = (source or "").strip()
+    return SOURCE_DISPLAY_NAMES.get(key.lower(), key.title())
+
+
 def _format_articles(raw: list[dict]) -> list[dict]:
     out = []
     for a in raw:
-        headline = (a.get("headline") or "").strip()
+        headline = strip_publisher_suffix((a.get("headline") or "").strip())
         if not headline:
             continue
         tone = round(float(a.get("sentiment") or 0.0) * 10, 1)
@@ -100,7 +137,7 @@ def _format_articles(raw: list[dict]) -> list[dict]:
         out.append({
             "title": headline,
             "url": a.get("url", ""),
-            "source": a.get("source_name", ""),
+            "source": display_source(a.get("source_name", "")),
             "date": published,
             "tone": tone,
             "reasoning": a.get("reasoning", ""),
