@@ -1,5 +1,5 @@
 """
-Commodity FX Volatility Monitor
+Commodity-FX Volatility Monitor
 ------------------------------------
 Run: python3 app.py
 Then open http://localhost:8050 in your browser.
@@ -101,6 +101,7 @@ import views.trade_flows as flow_view
 import views.risk_news as risk_view
 import views.fx as fx_view
 import views.opportunities as opp_view
+import views.about as about_view
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -142,7 +143,7 @@ pio.templates.default = "plotly+monitor"
 app = dash.Dash(
     __name__,
     external_stylesheets=[dbc.themes.DARKLY],
-    title="Commodity FX Volatility Monitor",
+    title="Commodity-FX Volatility Monitor",
     suppress_callback_exceptions=True,
 )
 
@@ -273,6 +274,9 @@ TABS = [
     ("Country Exposure", "country-exp"),
     ("Risk & News", "risk-news"),
     ("Opportunities", "opportunities"),
+    # Last: the reference a reader returns to, and the first thing a
+    # visitor opens when they want to know what they are looking at.
+    ("About", "about"),
 ]
 
 
@@ -284,7 +288,7 @@ app.layout = dbc.Container(
                 dbc.Col(
                     [
                         html.Span(className="board-status-dot"),
-                        html.Span("Commodity FX Volatility Monitor", className="board-title"),
+                        html.Span("Commodity-FX Volatility Monitor", className="board-title"),
                     ],
                     width="auto",
                     className="d-flex align-items-center",
@@ -443,6 +447,8 @@ def render_tab(active_tab, json_data):
         return fx_view.layout()
     if active_tab == "opportunities":
         return opp_view.layout()
+    if active_tab == "about":
+        return about_view.layout()
     if active_tab == "country-exp":
         return exp_view.layout()
     if active_tab == "trade-flows":
