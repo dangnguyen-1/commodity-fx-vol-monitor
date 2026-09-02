@@ -1,6 +1,6 @@
 """
-Commodity news sentiment via the paper-trading pipeline's read-only API
-(paper_trading/api/app.py's /news/latest route) — LLM-classified real
+Commodity news sentiment via the pipeline's read-only API
+(api/app.py's /news/latest route) — LLM-classified real
 headlines with direction, confidence, and reasoning, not raw GDELT tone
 averaging. Sentiment is scaled by 10 (pipeline sentiment is -1..+1; the
 rest of this app's thresholds and the confluence screener were built

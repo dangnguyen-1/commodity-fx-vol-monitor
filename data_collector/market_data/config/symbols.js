@@ -26,6 +26,11 @@ const futures = [
   'ABAXX:GOM1!',
   'COMEX:LTH1!',
   'COMEX:UX1!',
+  // ICE Rotterdam API2, the seaborne thermal coal benchmark. Newcastle
+  // (NYMEX:QLA1!, NYMEX:MTF1!) is the Asian reference and would suit AUD
+  // better, but neither resolves on this account; API2 tracks it closely
+  // and carries full history back to 2010.
+  'ICEEUR:ATW1!',
 ];
 
 const proxies = [

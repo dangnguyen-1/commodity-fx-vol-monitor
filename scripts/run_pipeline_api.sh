@@ -3,4 +3,4 @@
 # run_news_stream.sh.
 set -e
 cd "$(dirname "$0")/.."
-exec .venv/bin/python3 -m uvicorn paper_trading.api.app:app --host 0.0.0.0 --port 8000
+exec .venv/bin/python3 -m uvicorn api.app:app --host 127.0.0.1 --port 8000

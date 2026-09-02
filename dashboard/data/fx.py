@@ -82,6 +82,13 @@ COMMODITY_FX_GROUPS: dict[str, list[str]] = {
     "WTI Crude":   ["CAN", "MEX", "COL", "JPN"],
     "Brent Crude": ["CAN", "NOR", "RUS", "MEX", "COL"],
     "Natural Gas": ["RUS", "NOR", "AUS", "CAN"],
+    # Australia nets +$389B in coal over 2020-2025, more than double
+    # Indonesia and its second largest export after iron ore. Indonesia
+    # leads on volume among non-tracked currencies but the rupiah is not in
+    # CURRENCY_PAIRS. COL is included on the same footing as in Coffee: a
+    # genuine top-five seaborne exporter whose rows arrive with the widened
+    # reporter list.
+    "Coal":        ["AUS", "ZAF", "CAN", "RUS", "COL"],
     # RUS added: world's #2 gold producer. GHA added: Africa's #1 and
     # world's #6 gold producer (new currency, see CURRENCY_PAIRS).
     "Gold":        ["AUS", "ZAF", "CAN", "CHE", "RUS", "GHA"],

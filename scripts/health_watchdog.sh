@@ -19,5 +19,5 @@ set -a
 . ./.env
 set +a
 
-exec .venv/bin/python3 -m paper_trading.monitoring.health_watchdog \
+exec .venv/bin/python3 -m monitoring.health_watchdog \
   --quiet-when-healthy

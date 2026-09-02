@@ -1,6 +1,6 @@
 """
 Aggregate trade totals from the paper-trading pipeline's UN Comtrade feed
-(data_collector/fundamental_data/, via paper_trading/api/app.py's
+(data_collector/fundamental_data/, via api/app.py's
 /trade-data route) — real, pre-aggregated per-country monthly data with no
 rate limits, unlike the free public Comtrade API data/comtrade.py falls
 back to.

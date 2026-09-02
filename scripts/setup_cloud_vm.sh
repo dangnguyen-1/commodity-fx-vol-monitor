@@ -46,14 +46,14 @@ fi
 
 REPO_ROOT="$(pwd)"
 
-echo "=== [1/10] System packages ==="
+echo "=== [1/9] System packages ==="
 sudo apt-get update -y
 # postgresql-client gives us psql regardless of which database mode step 5
 # takes — we need it to apply the collectors' schema in step 7 even when
 # the server itself lives somewhere else.
 sudo apt-get install -y git curl build-essential ufw postgresql-client
 
-echo "=== [2/10] Python + venv ==="
+echo "=== [2/9] Python + venv ==="
 # Use whatever python3 the distro ships rather than pinning a minor
 # version. The previous `apt-get install python3.11` could not succeed on
 # any Ubuntu this script claims to support — 22.04 ships 3.10, 24.04 ships
@@ -88,7 +88,7 @@ pip install -r requirements-dashboard.txt
 # process dies immediately on `import dash`.
 pip install -r dashboard/requirements.txt
 
-echo "=== [3/10] Node.js (>= 20) + npm packages ==="
+echo "=== [3/9] Node.js (>= 20) + npm packages ==="
 # Prefer the distro's own nodejs when it's new enough — 26.04 ships 22.x,
 # which is fine — and only reach for the NodeSource repo when it isn't.
 # Adding a third-party apt repo is worth avoiding when the archive already
@@ -104,7 +104,7 @@ echo "Using node $(node -v)"
 npm install
 sudo npm install -g pm2
 
-echo "=== [4/10] Environment file ==="
+echo "=== [4/9] Environment file ==="
 if [ ! -f ".env" ]; then
   cp .env.example .env
   echo "Created .env from .env.example."
@@ -112,7 +112,7 @@ else
   echo ".env already exists — leaving it alone."
 fi
 
-echo "=== [5/10] Postgres ==="
+echo "=== [5/9] Postgres ==="
 echo "Where should the collectors' Postgres live?"
 echo "  local    — install and run it on this box (recommended: one VM owns"
 echo "             the data and the processes writing it, no egress, no"
@@ -163,7 +163,7 @@ else
   echo "Fine — you'll paste your own DATABASE_URL into .env at the next step."
 fi
 
-echo "=== [6/10] Remaining secrets ==="
+echo "=== [6/9] Remaining secrets ==="
 echo
 echo "!!! STOP — before continuing, edit .env with your own credentials: !!!"
 echo "    - TV_SESSION_ID / TV_SESSION_SIGN   (your TradingView session — these"
@@ -178,7 +178,7 @@ fi
 echo
 read -p "Press Enter once .env is filled in and saved to continue... " _
 
-echo "=== [7/10] Create the collectors' Postgres tables ==="
+echo "=== [7/9] Create the collectors' Postgres tables ==="
 # market_data / fundamental_trade_data / news_articles / news_sentiment.
 # Nothing else in this repo ever applies this file — it used to be run by
 # hand exactly once, on a database that was then treated as a given, which
@@ -195,18 +195,11 @@ fi
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f data_collector/database/schema.sql
 echo "Collector tables are in place."
 
-echo "=== [8/10] Bootstrap the paper-trading database and verify the spec ==="
-mkdir -p paper_trading/data
-python3 -m paper_trading.database.init_database
-python3 -m paper_trading.database.load_relationships
-python3 -m paper_trading.database.populate_live_instrument_registry
-python3 -m strategy.config.intraday.load_intraday_spec
-
-echo "=== [9/10] Firewall — SSH only, nothing else exposed ==="
+echo "=== [8/9] Firewall — SSH only, nothing else exposed ==="
 sudo ufw allow OpenSSH
 sudo ufw --force enable
 
-echo "=== [10/10] Start everything under pm2 ==="
+echo "=== [9/9] Start everything under pm2 ==="
 pm2 start ecosystem.config.js
 pm2 save
 

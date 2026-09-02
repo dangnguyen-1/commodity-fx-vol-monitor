@@ -99,7 +99,6 @@ import views.trade_flows as flow_view
 import views.risk_news as risk_view
 import views.fx as fx_view
 import views.opportunities as opp_view
-import views.strategy as strategy_view
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -211,6 +210,23 @@ def _build_summary_cards(prices: pd.DataFrame, hv30: pd.Series) -> list:
 # Layout
 # ---------------------------------------------------------------------------
 
+# The mode switch and its Paper Trading tabs were removed with the
+# paper-trading engine (see docs/PAPER_TRADING_HISTORY.md). One mode means
+# the tab list is static, so it is built once in the layout rather than by a
+# callback watching a switch that no longer exists.
+TABS = [
+    ("Volatility", "vol"),
+    ("Returns & Trends", "returns"),
+    ("Currencies", "fx"),
+    ("Correlation", "corr"),
+    ("Opportunities", "opportunities"),
+    ("Alerts", "alerts-tab"),
+    ("Country Exposure", "country-exp"),
+    ("Trade Flows", "trade-flows"),
+    ("Risk & News", "risk-news"),
+]
+
+
 app.layout = dbc.Container(
     [
         # ── Header ──────────────────────────────────────────────────────
@@ -247,32 +263,13 @@ app.layout = dbc.Container(
         # ── Alert banner ────────────────────────────────────────────────
         html.Div(id="alert-banner", className="mb-3"),
 
-        # ── Mode switch ─────────────────────────────────────────────────
-        # Thirteen flat tabs asked the reader to work out which ones belong
-        # to market research and which to the trading engine. Splitting them
-        # into two modes makes that structural, so each view holds one idea.
-        dbc.Row(
-            dbc.Col(
-                dbc.RadioItems(
-                    id="mode-switch",
-                    options=[
-                        {"label": "Research", "value": "research"},
-                        {"label": "Paper Trading", "value": "trading"},
-                    ],
-                    value="research",
-                    className="board-mode-switch",
-                    inputClassName="btn-check",
-                    labelClassName="btn board-mode-btn",
-                    labelCheckedClassName="active",
-                    inline=True,
-                ),
-                width="auto",
-            ),
+        # ── Tabs ────────────────────────────────────────────────────────
+        dbc.Tabs(
+            [dbc.Tab(label=label, tab_id=tab_id) for label, tab_id in TABS],
+            id="tabs",
+            active_tab=TABS[0][1],
             className="mb-3",
         ),
-
-        # ── Tabs ────────────────────────────────────────────────────────
-        dbc.Tabs(id="tabs", active_tab="vol", className="mb-3"),
         html.Div(id="tab-content"),
 
         # ── Hidden stores ───────────────────────────────────────────────
@@ -364,42 +361,6 @@ def update_summary(json_data):
     return cards, banner
 
 
-# Tabs belonging to each mode. Research covers the market; Paper Trading
-# covers the engine acting on it.
-RESEARCH_TABS = [
-    ("Volatility", "vol"),
-    ("Returns & Trends", "returns"),
-    ("Currencies", "fx"),
-    ("Correlation", "corr"),
-    ("Opportunities", "opportunities"),
-    ("Alerts", "alerts-tab"),
-    ("Country Exposure", "country-exp"),
-    ("Trade Flows", "trade-flows"),
-    ("Risk & News", "risk-news"),
-]
-
-TRADING_TABS = [
-    # Overview first: a reader arriving from a shared link needs the thesis
-    # before the numbers mean anything.
-    ("Overview", "overview"),
-    ("Positions", "positions"),
-    ("Signals", "signals"),
-    ("Performance", "performance"),
-    ("Engine", "engine"),
-]
-
-
-@app.callback(
-    Output("tabs", "children"),
-    Output("tabs", "active_tab"),
-    Input("mode-switch", "value"),
-)
-def render_mode(mode):
-    tabs = TRADING_TABS if mode == "trading" else RESEARCH_TABS
-    return (
-        [dbc.Tab(label=label, tab_id=tab_id) for label, tab_id in tabs],
-        tabs[0][1],
-    )
 
 
 @app.callback(
@@ -425,16 +386,6 @@ def render_tab(active_tab, json_data):
         return flow_view.layout()
     if active_tab == "risk-news":
         return risk_view.layout()
-    if active_tab == "overview":
-        return strategy_view.overview_layout()
-    if active_tab == "positions":
-        return strategy_view.positions_layout()
-    if active_tab == "signals":
-        return strategy_view.signals_layout()
-    if active_tab == "performance":
-        return strategy_view.performance_layout()
-    if active_tab == "engine":
-        return strategy_view.engine_layout()
 
     hv_dict = historical_volatility(prices, VOL_WINDOWS)
     if active_tab == "vol":

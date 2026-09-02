@@ -64,19 +64,6 @@ module.exports = {
       cron_restart: "*/5 * * * *",
     },
     {
-      // Bridges news-stream/news-sentiment-stream's Postgres output into
-      // the SQLite database the API's /news/latest endpoint actually
-      // reads from — see paper_trading/news_data/sync_news.py. Without
-      // this running, the classified articles pile up in Postgres but
-      // the dashboard never sees anything past whenever this last ran.
-      // Incremental/checkpointed, so a 5-minute cadence is cheap.
-      name: "news-sync",
-      script: "scripts/sync_news.sh",
-      interpreter: "bash",
-      autorestart: false,
-      cron_restart: "*/5 * * * *",
-    },
-    {
       // Rebuilds the pre-aggregated 1D bars market_data holds alongside
       // the raw 1-minute ticks (see historical_daily_backfill.js) — the
       // dashboard's daily-close prices come from these, not the raw
@@ -99,18 +86,6 @@ module.exports = {
       interpreter: "bash",
       autorestart: false,
       cron_restart: "0 6 * * *",
-    },
-    {
-      // The strategy's decision loop — features and signals every five
-      // minutes, paper execution every minute. This is the only process
-      // that evaluates the strategy or closes a position, session-close
-      // enforcement included, so it needs to stay up.
-      name: "strategy-orchestrator",
-      script: "scripts/run_strategy_orchestrator.sh",
-      interpreter: "bash",
-      autorestart: true,
-      restart_delay: 5000,
-      max_restarts: 20,
     },
     {
       // Nightly pg_dump with rotation (see scripts/backup_database.sh).

@@ -18,48 +18,58 @@ import os
 DATA_SOURCE: str = os.environ.get("DATA_SOURCE", "pipeline")
 
 # The paper-trading pipeline's read-only API (data_collector's TradingView
-# feed + UN Comtrade feed, via paper_trading/api/app.py's /market-data and
+# feed + UN Comtrade feed, via api/app.py's /market-data and
 # /trade-data routes). Market data always tries this first and falls back
 # to Yahoo Finance only for symbols it doesn't have — see data/market_data.py.
 PIPELINE_API_BASE_URL: str = os.environ.get("PIPELINE_API_BASE_URL", "http://127.0.0.1:8000")
 
 COMMODITIES: dict[str, dict] = {
-    # Energy
-    "WTI Crude":   {"bbg": "CL1 Comdty", "yahoo": "CL=F",  "tradingview": "NYMEX:CL1!", "comtrade": "Crude Oil / Brent", "group": "Energy",      "alert_vol": 50.0},
-    "Brent Crude": {"bbg": "CO1 Comdty", "yahoo": "BZ=F",  "tradingview": "NYMEX:BZ1!", "comtrade": "Crude Oil / Brent", "group": "Energy",      "alert_vol": 45.0},
-    "Natural Gas": {"bbg": "NG1 Comdty", "yahoo": "NG=F",  "tradingview": "NYMEX:NG1!", "comtrade": "Natural Gas / LNG", "group": "Energy",      "alert_vol": 70.0},
-    # Metals
-    "Gold":        {"bbg": "GC1 Comdty", "yahoo": "GC=F",  "tradingview": "COMEX:GC1!", "comtrade": "Gold",              "group": "Metals",      "alert_vol": 25.0},
-    "Silver":      {"bbg": "SI1 Comdty", "yahoo": "SI=F",  "tradingview": "COMEX:SI1!", "comtrade": "Silver",            "group": "Metals",      "alert_vol": 35.0},
-    "Copper":      {"bbg": "HG1 Comdty", "yahoo": "HG=F",  "tradingview": "COMEX:HG1!", "comtrade": "Copper",            "group": "Metals",      "alert_vol": 30.0},
-    # Agriculture
-    "Wheat":       {"bbg": "W 1 Comdty", "yahoo": "ZW=F",  "tradingview": "CBOT:ZW1!",  "comtrade": "Wheat",             "group": "Agriculture", "alert_vol": 35.0},
-    "Corn":        {"bbg": "C 1 Comdty", "yahoo": "ZC=F",  "tradingview": "CBOT:ZC1!",  "comtrade": "Corn",              "group": "Agriculture", "alert_vol": 30.0},
-    "Soybeans":    {"bbg": "S 1 Comdty", "yahoo": "ZS=F",  "tradingview": "CBOT:ZS1!",  "comtrade": "Soybeans",          "group": "Agriculture", "alert_vol": 28.0},
-
-    # Added to cover the commodity each tracked currency actually dominates.
-    # The nine above map several currencies to exports they are only
-    # secondary in: ZAR was tracked against gold and copper but not
-    # platinum, where South Africa is the world's largest net exporter by a
-    # wide margin, and AUD was tracked against five commodities but not iron
-    # ore, Australia's single largest export at $614B over 2020-2025.
+    # Ordered so neighbours are substitutes or share a driver, because the
+    # dashboard renders them in this order and a reader compares whatever
+    # sits side by side. Gold next to silver, the two PGMs together, the
+    # three crude-and-thermal fuels together, grains before softs.
     #
-    # alert_vol follows the convention above, roughly 1.25x full-sample
-    # annualised volatility measured from the daily bars, rounded to 5.
-    # Metals
-    "Platinum":    {"bbg": "PL1 Comdty", "yahoo": "PL=F",  "tradingview": "NYMEX:PL1!",  "comtrade": "Platinum",         "group": "Metals",      "alert_vol": 35.0},
-    "Palladium":   {"bbg": "PA1 Comdty", "yahoo": "PA=F",  "tradingview": "NYMEX:PA1!",  "comtrade": "Palladium",        "group": "Metals",      "alert_vol": 45.0},
-    # Iron ore and aluminium start in 2014 rather than 2010; twelve years is
-    # still a usable sample and both are too central to AUD and CAD to omit.
-    "Iron Ore":    {"bbg": "TIO1 Comdty","yahoo": "TIO=F", "tradingview": "SGX:FEF1!",   "comtrade": "Iron Ore",         "group": "Metals",      "alert_vol": 40.0},
+    # "group" stays one of Energy, Metals or Agriculture: app.py and
+    # country_exposure.py both read that field, so the finer splits below
+    # are expressed by position rather than by inventing new group names.
+    #
+    # alert_vol is roughly 1.25x full-sample annualised volatility measured
+    # from the daily bars, rounded to 5, which is the convention the first
+    # nine were set on.
+
+    # Energy: two crude benchmarks, then the two thermal fuels.
+    "WTI Crude":   {"bbg": "CL1 Comdty", "yahoo": "CL=F",  "tradingview": "NYMEX:CL1!",   "comtrade": "Crude Oil / Brent", "group": "Energy",      "alert_vol": 50.0},
+    "Brent Crude": {"bbg": "CO1 Comdty", "yahoo": "BZ=F",  "tradingview": "NYMEX:BZ1!",   "comtrade": "Crude Oil / Brent", "group": "Energy",      "alert_vol": 45.0},
+    "Natural Gas": {"bbg": "NG1 Comdty", "yahoo": "NG=F",  "tradingview": "NYMEX:NG1!",   "comtrade": "Natural Gas / LNG", "group": "Energy",      "alert_vol": 70.0},
+    # ICE Rotterdam API2. Newcastle is the Asian benchmark and would suit
+    # AUD better, but it does not resolve on this account; API2 tracks it
+    # closely and carries full history to 2010. Australia nets +$389B here
+    # over 2020-2025, its second largest export after iron ore.
+    "Coal":        {"bbg": "XAL1 Comdty","yahoo": "MTF=F", "tradingview": "ICEEUR:ATW1!", "comtrade": "Coal",              "group": "Energy",      "alert_vol": 45.0},
+
+    # Metals, precious first: gold and silver, then the two PGMs, which
+    # trade as a pair and share South Africa and Russia as suppliers.
+    "Gold":        {"bbg": "GC1 Comdty", "yahoo": "GC=F",  "tradingview": "COMEX:GC1!",   "comtrade": "Gold",              "group": "Metals",      "alert_vol": 25.0},
+    "Silver":      {"bbg": "SI1 Comdty", "yahoo": "SI=F",  "tradingview": "COMEX:SI1!",   "comtrade": "Silver",            "group": "Metals",      "alert_vol": 35.0},
+    "Platinum":    {"bbg": "PL1 Comdty", "yahoo": "PL=F",  "tradingview": "NYMEX:PL1!",   "comtrade": "Platinum",          "group": "Metals",      "alert_vol": 35.0},
+    "Palladium":   {"bbg": "PA1 Comdty", "yahoo": "PA=F",  "tradingview": "NYMEX:PA1!",   "comtrade": "Palladium",         "group": "Metals",      "alert_vol": 45.0},
+    # Then industrial. Iron ore and aluminium start in 2014 rather than
+    # 2010; twelve years is still usable and both are too central to AUD
+    # and CAD to leave out.
+    "Copper":      {"bbg": "HG1 Comdty", "yahoo": "HG=F",  "tradingview": "COMEX:HG1!",   "comtrade": "Copper",            "group": "Metals",      "alert_vol": 30.0},
     # "Aluminum" without the second i: that is the spelling the Comtrade
     # feed uses, and this field is a join key, not a label.
-    "Aluminium":   {"bbg": "LA1 Comdty", "yahoo": "ALI=F", "tradingview": "COMEX:ALI1!", "comtrade": "Aluminum",         "group": "Metals",      "alert_vol": 25.0},
-    # Agriculture
-    "Coffee":      {"bbg": "KC1 Comdty", "yahoo": "KC=F",  "tradingview": "ICEUS:KC1!",  "comtrade": "Coffee",           "group": "Agriculture", "alert_vol": 40.0},
-    "Sugar":       {"bbg": "SB1 Comdty", "yahoo": "SB=F",  "tradingview": "ICEUS:SB1!",  "comtrade": "Sugar",            "group": "Agriculture", "alert_vol": 40.0},
-    "Cotton":      {"bbg": "CT1 Comdty", "yahoo": "CT=F",  "tradingview": "ICEUS:CT1!",  "comtrade": "Cotton",           "group": "Agriculture", "alert_vol": 35.0},
-    "Live Cattle": {"bbg": "LC1 Comdty", "yahoo": "LE=F",  "tradingview": "CME:LE1!",    "comtrade": "Cattle",           "group": "Agriculture", "alert_vol": 22.0},
+    "Aluminium":   {"bbg": "LA1 Comdty", "yahoo": "ALI=F", "tradingview": "COMEX:ALI1!",  "comtrade": "Aluminum",          "group": "Metals",      "alert_vol": 25.0},
+    "Iron Ore":    {"bbg": "TIO1 Comdty","yahoo": "TIO=F", "tradingview": "SGX:FEF1!",    "comtrade": "Iron Ore",          "group": "Metals",      "alert_vol": 40.0},
+
+    # Agriculture: grains and oilseeds, then softs, then livestock.
+    "Wheat":       {"bbg": "W 1 Comdty", "yahoo": "ZW=F",  "tradingview": "CBOT:ZW1!",    "comtrade": "Wheat",             "group": "Agriculture", "alert_vol": 35.0},
+    "Corn":        {"bbg": "C 1 Comdty", "yahoo": "ZC=F",  "tradingview": "CBOT:ZC1!",    "comtrade": "Corn",              "group": "Agriculture", "alert_vol": 30.0},
+    "Soybeans":    {"bbg": "S 1 Comdty", "yahoo": "ZS=F",  "tradingview": "CBOT:ZS1!",    "comtrade": "Soybeans",          "group": "Agriculture", "alert_vol": 28.0},
+    "Coffee":      {"bbg": "KC1 Comdty", "yahoo": "KC=F",  "tradingview": "ICEUS:KC1!",   "comtrade": "Coffee",            "group": "Agriculture", "alert_vol": 40.0},
+    "Sugar":       {"bbg": "SB1 Comdty", "yahoo": "SB=F",  "tradingview": "ICEUS:SB1!",   "comtrade": "Sugar",             "group": "Agriculture", "alert_vol": 40.0},
+    "Cotton":      {"bbg": "CT1 Comdty", "yahoo": "CT=F",  "tradingview": "ICEUS:CT1!",   "comtrade": "Cotton",            "group": "Agriculture", "alert_vol": 35.0},
+    "Live Cattle": {"bbg": "LC1 Comdty", "yahoo": "LE=F",  "tradingview": "CME:LE1!",     "comtrade": "Cattle",            "group": "Agriculture", "alert_vol": 22.0},
 }
 
 # Derived lookups
